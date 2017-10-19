@@ -150,6 +150,8 @@ configuration_option_enum! { WriteMode:
     Plain,
     // Outputs a checkstyle XML file.
     Checkstyle,
+    // Output the changed lines
+    Modified,
 }
 
 /// Trait for types that can be used in `Config`.

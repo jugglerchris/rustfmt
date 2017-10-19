@@ -18,7 +18,7 @@ use strings::string_buffer::StringBuffer;
 
 use checkstyle::{output_checkstyle_file, output_footer, output_header};
 use config::{Config, NewlineStyle, WriteMode};
-use rustfmt_diff::{make_diff, print_diff, Mismatch};
+use rustfmt_diff::{make_diff, print_diff, print_modified, Mismatch};
 
 // A map of the files of a crate, with their new content
 pub type FileMap = Vec<FileRecord>;
@@ -154,6 +154,16 @@ where
                 let has_diff = !mismatch.is_empty();
                 print_diff(mismatch, |line_num| {
                     format!("Diff in {} at line {}:", filename, line_num)
+                });
+                return Ok(has_diff);
+            }
+        }
+        WriteMode::Modified => {
+            if let Ok((ori, fmt)) = source_and_formatted_text(text, filename, config) {
+                let mismatch = make_diff(&ori, &fmt, 0);
+                let has_diff = !mismatch.is_empty();
+                print_modified(mismatch, |line_num| {
+                    format!("blah blah in {} at line {}:", filename, line_num)
                 });
                 return Ok(has_diff);
             }

@@ -108,6 +108,18 @@ where
     }
 }
 
+pub fn print_modified<F>(diff: Vec<Mismatch>, get_section_title: F)
+where
+    F: Fn(u32) -> String,
+{
+    match term::stdout() {
+        Some(ref t) if false && isatty() && t.supports_color() => {
+            print_modified_fancy(diff, get_section_title, term::stdout().unwrap())
+        }
+        _ => print_modified_basic(diff, get_section_title),
+    }
+}
+
 fn print_diff_fancy<F>(
     diff: Vec<Mismatch>,
     get_section_title: F,
@@ -143,6 +155,7 @@ pub fn print_diff_basic<F>(diff: Vec<Mismatch>, get_section_title: F)
 where
     F: Fn(u32) -> String,
 {
+    println!("print_Diff_basic: diff=[[[{:#?}]]]", diff);
     for mismatch in diff {
         let title = get_section_title(mismatch.line_number);
         println!("{}", title);
@@ -162,6 +175,65 @@ where
         }
     }
 }
+
+pub fn print_modified_basic<F>(diff: Vec<Mismatch>, get_section_title: F)
+where
+    F: Fn(u32) -> String,
+{
+    println!("diff=[[[{:#?}]]]", diff);
+    for mismatch in diff {
+        let title = get_section_title(mismatch.line_number);
+        println!("{}", title);
+        println!("mismatch=[[[{:#?}]]]", mismatch);
+        let mut num_replaced = 0;
+        for line in mismatch.lines {
+            println!("{:?}", line);
+            match line {
+                DiffLine::Context(_) => (),//panic!("No context expected"),
+                DiffLine::Expected(ref str) => {
+                    println!("{}", str);
+                }
+                DiffLine::Resulting(_) => {
+                    num_replaced += 1;
+                }
+            }
+        }
+        println!("Number replaced: {}", num_replaced);
+    }
+}
+
+fn print_modified_fancy<F>(
+    diff: Vec<Mismatch>,
+    get_section_title: F,
+    mut t: Box<term::Terminal<Output = io::Stdout>>,
+) where
+    F: Fn(u32) -> String,
+{
+    for mismatch in diff {
+        let title = get_section_title(mismatch.line_number);
+        writeln!(t, "{}", title).unwrap();
+        println!("Blah fancy");
+
+        for line in mismatch.lines {
+            match line {
+                DiffLine::Context(ref str) => {
+                    t.reset().unwrap();
+                    writeln!(t, " {}⏎", str).unwrap();
+                }
+                DiffLine::Expected(ref str) => {
+                    t.fg(term::color::GREEN).unwrap();
+                    writeln!(t, "+{}⏎", str).unwrap();
+                }
+                DiffLine::Resulting(ref str) => {
+                    t.fg(term::color::RED).unwrap();
+                    writeln!(t, "-{}⏎", str).unwrap();
+                }
+            }
+        }
+        t.reset().unwrap();
+    }
+}
+
 
 #[cfg(test)]
 mod test {
