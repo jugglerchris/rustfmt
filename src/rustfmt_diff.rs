@@ -218,6 +218,7 @@ mod test {
             vec![
                 Mismatch {
                     line_number: 2,
+                    line_number_orig: 2,
                     lines: vec![
                         Context("two".into()),
                         Resulting("three".into()),
@@ -239,6 +240,7 @@ mod test {
             vec![
                 Mismatch {
                     line_number: 2,
+                    line_number_orig: 2,
                     lines: vec![
                         Context("two".into()),
                         Resulting("three".into()),
@@ -248,6 +250,7 @@ mod test {
                 },
                 Mismatch {
                     line_number: 5,
+                    line_number_orig: 5,
                     lines: vec![
                         Resulting("five".into()),
                         Expected("cinq".into()),
@@ -268,6 +271,7 @@ mod test {
             vec![
                 Mismatch {
                     line_number: 3,
+                    line_number_orig: 3,
                     lines: vec![Resulting("three".into()), Expected("trois".into())],
                 },
             ]

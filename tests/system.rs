@@ -416,6 +416,7 @@ fn rustfmt_diff_make_diff_tests() {
         vec![
             Mismatch {
                 line_number: 1,
+                line_number_orig: 1,
                 lines: vec![
                     DiffLine::Context("a".into()),
                     DiffLine::Resulting("b".into()),
