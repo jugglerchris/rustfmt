@@ -1,0 +1,5 @@
+Replaced 4 lines at 4 with 1 new lines in tests/writemode/source/modified.rs:
+fn blah() {}
+Replaced 5 lines at 10 with 2 new lines in tests/writemode/source/modified.rs:
+#[cfg(a, b)]
+fn main() {}

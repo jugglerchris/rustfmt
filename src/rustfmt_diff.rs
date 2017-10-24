@@ -13,6 +13,7 @@ use std::collections::VecDeque;
 use std::io;
 use term;
 use utils::isatty;
+use std::io::Write;
 
 #[derive(Debug, PartialEq)]
 pub enum DiffLine {
@@ -177,8 +178,9 @@ where
     }
 }
 
-pub fn print_modified<F>(diff: Vec<Mismatch>, get_section_title: F)
+pub fn output_modified<W, F>(mut out: W, diff: Vec<Mismatch>, get_section_title: F)
 where
+    W: Write,
     F: Fn(u32, u32, u32) -> String,
 {
     for mismatch in diff {
@@ -191,13 +193,13 @@ where
             },
         );
         let title = get_section_title(mismatch.line_number_orig, num_removed, num_added);
-        println!("{}", title);
+        writeln!(out, "{}", title).unwrap();
 
         for line in mismatch.lines {
             match line {
                 DiffLine::Context(_) | DiffLine::Resulting(_) => (),
                 DiffLine::Expected(ref str) => {
-                    println!("{}", str);
+                    writeln!(out, "{}", str).unwrap();
                 }
             }
         }
