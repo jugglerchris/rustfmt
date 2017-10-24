@@ -55,8 +55,10 @@ pub fn make_diff(expected: &str, actual: &str, context_size: usize) -> Vec<Misma
             diff::Result::Left(str) => {
                 if lines_since_mismatch >= context_size && lines_since_mismatch > 0 {
                     results.push(mismatch);
-                    mismatch = Mismatch::new(line_number - context_queue.len() as u32,
-                                             line_number_orig - context_queue.len() as u32);
+                    mismatch = Mismatch::new(
+                        line_number - context_queue.len() as u32,
+                        line_number_orig - context_queue.len() as u32,
+                    );
                 }
 
                 while let Some(line) = context_queue.pop_front() {
@@ -70,8 +72,10 @@ pub fn make_diff(expected: &str, actual: &str, context_size: usize) -> Vec<Misma
             diff::Result::Right(str) => {
                 if lines_since_mismatch >= context_size && lines_since_mismatch > 0 {
                     results.push(mismatch);
-                    mismatch = Mismatch::new(line_number - context_queue.len() as u32,
-                                             line_number_orig - context_queue.len() as u32);
+                    mismatch = Mismatch::new(
+                        line_number - context_queue.len() as u32,
+                        line_number_orig - context_queue.len() as u32,
+                    );
                 }
 
                 while let Some(line) = context_queue.pop_front() {
@@ -178,23 +182,20 @@ where
     F: Fn(u32, u32, u32) -> String,
 {
     for mismatch in diff {
-        let (num_removed, num_added) =
-            mismatch.lines
-                .iter()
-                .fold((0, 0), |(rem, add), line| {
-                    match *line {
-                        DiffLine::Context(_) => panic!("No Context expected"),
-                        DiffLine::Expected(_) => (rem, add+1),
-                        DiffLine::Resulting(_) => (rem+1, add),
-                    }
-                });
+        let (num_removed, num_added) = mismatch.lines.iter().fold(
+            (0, 0),
+            |(rem, add), line| match *line {
+                DiffLine::Context(_) => panic!("No Context expected"),
+                DiffLine::Expected(_) => (rem, add + 1),
+                DiffLine::Resulting(_) => (rem + 1, add),
+            },
+        );
         let title = get_section_title(mismatch.line_number_orig, num_removed, num_added);
         println!("{}", title);
 
         for line in mismatch.lines {
             match line {
-                DiffLine::Context(_) |
-                DiffLine::Resulting(_) => (),
+                DiffLine::Context(_) | DiffLine::Resulting(_) => (),
                 DiffLine::Expected(ref str) => {
                     println!("{}", str);
                 }

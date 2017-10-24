@@ -163,7 +163,13 @@ where
                 let mismatch = make_diff(&ori, &fmt, 0);
                 let has_diff = !mismatch.is_empty();
                 print_modified(mismatch, |line_num, num_removed, num_added| {
-                    format!("Replaced {} lines at {} with {} new lines in {}:", num_removed, line_num, num_added, filename)
+                    format!(
+                        "Replaced {} lines at {} with {} new lines in {}:",
+                        num_removed,
+                        line_num,
+                        num_added,
+                        filename
+                    )
                 });
                 return Ok(has_diff);
             }
