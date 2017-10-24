@@ -23,14 +23,19 @@ pub enum DiffLine {
 
 #[derive(Debug, PartialEq)]
 pub struct Mismatch {
+    /// The line number in the formatted version.
     pub line_number: u32,
+    /// The line number in the original version.
+    pub line_number_orig: u32,
+    /// The set of lines (context and old/new) in the mismatch.
     pub lines: Vec<DiffLine>,
 }
 
 impl Mismatch {
-    fn new(line_number: u32) -> Mismatch {
+    fn new(line_number: u32, line_number_orig: u32) -> Mismatch {
         Mismatch {
             line_number: line_number,
+            line_number_orig: line_number_orig,
             lines: Vec::new(),
         }
     }
@@ -39,17 +44,19 @@ impl Mismatch {
 // Produces a diff between the expected output and actual output of rustfmt.
 pub fn make_diff(expected: &str, actual: &str, context_size: usize) -> Vec<Mismatch> {
     let mut line_number = 1;
+    let mut line_number_orig = 1;
     let mut context_queue: VecDeque<&str> = VecDeque::with_capacity(context_size);
     let mut lines_since_mismatch = context_size + 1;
     let mut results = Vec::new();
-    let mut mismatch = Mismatch::new(0);
+    let mut mismatch = Mismatch::new(0, 0);
 
     for result in diff::lines(expected, actual) {
         match result {
             diff::Result::Left(str) => {
                 if lines_since_mismatch >= context_size && lines_since_mismatch > 0 {
                     results.push(mismatch);
-                    mismatch = Mismatch::new(line_number - context_queue.len() as u32);
+                    mismatch = Mismatch::new(line_number - context_queue.len() as u32,
+                                             line_number_orig - context_queue.len() as u32);
                 }
 
                 while let Some(line) = context_queue.pop_front() {
@@ -57,12 +64,14 @@ pub fn make_diff(expected: &str, actual: &str, context_size: usize) -> Vec<Misma
                 }
 
                 mismatch.lines.push(DiffLine::Resulting(str.to_owned()));
+                line_number_orig += 1;
                 lines_since_mismatch = 0;
             }
             diff::Result::Right(str) => {
                 if lines_since_mismatch >= context_size && lines_since_mismatch > 0 {
                     results.push(mismatch);
-                    mismatch = Mismatch::new(line_number - context_queue.len() as u32);
+                    mismatch = Mismatch::new(line_number - context_queue.len() as u32,
+                                             line_number_orig - context_queue.len() as u32);
                 }
 
                 while let Some(line) = context_queue.pop_front() {
@@ -85,6 +94,7 @@ pub fn make_diff(expected: &str, actual: &str, context_size: usize) -> Vec<Misma
                 }
 
                 line_number += 1;
+                line_number_orig += 1;
                 lines_since_mismatch += 1;
             }
         }
@@ -178,7 +188,7 @@ where
                         DiffLine::Resulting(_) => (rem+1, add),
                     }
                 });
-        let title = get_section_title(mismatch.line_number, num_removed, num_added);
+        let title = get_section_title(mismatch.line_number_orig, num_removed, num_added);
         println!("{}", title);
 
         for line in mismatch.lines {
