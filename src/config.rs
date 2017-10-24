@@ -623,7 +623,7 @@ create_config! {
     use_try_shorthand: bool, false, "Replace uses of the try! macro by the ? shorthand";
     write_mode: WriteMode, WriteMode::Overwrite,
         "What Write Mode to use when none is supplied: \
-         Replace, Overwrite, Display, Plain, Diff, Coverage";
+         Replace, Overwrite, Display, Plain, Diff, Coverage, Modified";
     condense_wildcard_suffixes: bool, false, "Replace strings of _ wildcards by a single .. in \
                                               tuple patterns";
     combine_control_expr: bool, true, "Combine control expressions with function calls.";
