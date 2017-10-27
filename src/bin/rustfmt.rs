@@ -116,7 +116,7 @@ fn make_opts() -> Options {
         "",
         "write-mode",
         "how to write output (not usable when piping from stdin)",
-        "[replace|overwrite|display|plain|diff|coverage|checkstyle|modified]",
+        "[replace|overwrite|display|plain|diff|coverage|checkstyle]",
     );
     opts.optflag("", "skip-children", "don't reformat child modules");
 

@@ -100,7 +100,6 @@ You'll probably want to specify the write mode. Currently, there are modes for
          Will also exit with an error code if there are any differences.
 * `checkstyle` Will output the lines that need to be corrected as a checkstyle XML file,
   that can be used by tools like Jenkins.
-* `modified` Will output just the line number and new lines of modified parts of the file.
 
 The write mode can be set by passing the `--write-mode` flag on
 the command line. For example `rustfmt --write-mode=display src/filename.rs`
