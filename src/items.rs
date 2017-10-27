@@ -537,21 +537,9 @@ impl<'a> FmtVisitor<'a> {
                 )?
             }
             ast::VariantData::Unit(..) => if let Some(ref expr) = field.node.disr_expr {
-                let one_line_width =
-                    field.node.name.to_string().len() + self.snippet(expr.span).len() + 3;
-                if one_line_width <= shape.width {
-                    format!("{} = {}", field.node.name, self.snippet(expr.span))
-                } else {
-                    format!(
-                        "{}\n{}{}",
-                        field.node.name,
-                        shape
-                            .indent
-                            .block_indent(self.config)
-                            .to_string(self.config),
-                        self.snippet(expr.span)
-                    )
-                }
+                let lhs = format!("{} =", field.node.name);
+                // 1 = ','
+                rewrite_assign_rhs(&context, lhs, expr, shape.sub_width(1)?)?
             } else {
                 String::from(field.node.name.to_string())
             },
@@ -1771,12 +1759,18 @@ fn rewrite_fn_base(
         result.push(' ')
     }
 
+    // Skip `pub(crate)`.
+    let lo_after_visibility = if let ast::Visibility::Crate(s) = fn_sig.visibility {
+        context.codemap.span_after(mk_sp(s.hi(), span.hi()), ")")
+    } else {
+        span.lo()
+    };
     // A conservative estimation, to goal is to be over all parens in generics
     let args_start = fn_sig
         .generics
         .ty_params
         .last()
-        .map_or(span.lo(), |tp| end_typaram(tp));
+        .map_or(lo_after_visibility, |tp| end_typaram(tp));
     let args_end = if fd.inputs.is_empty() {
         context
             .codemap
@@ -2037,9 +2031,7 @@ fn rewrite_args(
     generics_str_contains_newline: bool,
 ) -> Option<String> {
     let mut arg_item_strs = args.iter()
-        .map(|arg| {
-            arg.rewrite(context, Shape::legacy(multi_line_budget, arg_indent))
-        })
+        .map(|arg| arg.rewrite(context, Shape::legacy(multi_line_budget, arg_indent)))
         .collect::<Option<Vec<_>>>()?;
 
     // Account for sugary self.
@@ -2713,17 +2705,15 @@ impl Rewrite for ast::ForeignItem {
         let span = mk_sp(self.span.lo(), self.span.hi() - BytePos(1));
 
         let item_str = match self.node {
-            ast::ForeignItemKind::Fn(ref fn_decl, ref generics) => {
-                rewrite_fn_base(
-                    context,
-                    shape.indent,
-                    self.ident,
-                    &FnSig::new(fn_decl, generics, self.vis.clone()),
-                    span,
-                    false,
-                    false,
-                ).map(|(s, _)| format!("{};", s))
-            }
+            ast::ForeignItemKind::Fn(ref fn_decl, ref generics) => rewrite_fn_base(
+                context,
+                shape.indent,
+                self.ident,
+                &FnSig::new(fn_decl, generics, self.vis.clone()),
+                span,
+                false,
+                false,
+            ).map(|(s, _)| format!("{};", s)),
             ast::ForeignItemKind::Static(ref ty, is_mutable) => {
                 // FIXME(#21): we're dropping potential comments in between the
                 // function keywords here.

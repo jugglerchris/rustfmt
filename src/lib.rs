@@ -137,7 +137,7 @@ impl FormattingError {
                     .count();
                 (self.line_buffer.len() - trailing_ws_len, trailing_ws_len)
             }
-            _ => (0, 0), // unreachable
+            _ => unreachable!(),
         }
     }
 }
@@ -319,13 +319,24 @@ where
         let filemap = visitor.codemap.lookup_char_pos(module.inner.lo()).file;
         // Format inner attributes if available.
         if !krate.attrs.is_empty() && path == main_file {
-            visitor.visit_attrs(&krate.attrs, ast::AttrStyle::Inner);
+            if visitor.visit_attrs(&krate.attrs, ast::AttrStyle::Inner) {
+                visitor.push_rewrite(module.inner, None);
+            } else {
+                visitor.format_separate_mod(module, &*filemap);
+            }
         } else {
             visitor.last_pos = filemap.start_pos;
-        }
-        visitor.format_separate_mod(module, &*filemap);
+            visitor.format_separate_mod(module, &*filemap);
+        };
 
-        has_diff |= after_file(path_str, &mut visitor.buffer)?;
+        has_diff |= match after_file(path_str, &mut visitor.buffer) {
+            Ok(result) => result,
+            Err(e) => {
+                // Create a new error with path_str to help users see which files failed
+                let mut err_msg = path_str.to_string() + &": ".to_string() + &e.to_string();
+                return Err(io::Error::new(e.kind(), err_msg));
+            }
+        };
 
         result.push((path_str.to_owned(), visitor.buffer));
     }

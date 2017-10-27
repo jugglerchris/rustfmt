@@ -899,9 +899,6 @@ fn rewrite_cond(context: &RewriteContext, expr: &ast::Expr, shape: Shape) -> Opt
             };
             cond.rewrite(context, cond_shape)
         }
-        ast::ExprKind::Block(ref block) if block.stmts.len() == 1 => {
-            stmt_expr(&block.stmts[0]).and_then(|e| rewrite_cond(context, e, shape))
-        }
         _ => to_control_flow(expr, ExprType::SubExpression).and_then(|control_flow| {
             let alt_block_sep =
                 String::from("\n") + &shape.indent.block_only().to_string(context.config);
@@ -1695,15 +1692,20 @@ fn rewrite_match_body(
     is_last: bool,
 ) -> Option<String> {
     let (extend, body) = flatten_arm_body(context, body);
-
-    let comma = arm_comma(context.config, body, is_last);
-    let alt_block_sep = String::from("\n") + &shape.indent.block_only().to_string(context.config);
-    let alt_block_sep = alt_block_sep.as_str();
     let (is_block, is_empty_block) = if let ast::ExprKind::Block(ref block) = body.node {
         (true, is_empty_block(block, context.codemap))
     } else {
         (false, false)
     };
+    let extend = if context.config.match_arm_forces_newline() {
+        is_block
+    } else {
+        extend
+    };
+
+    let comma = arm_comma(context.config, body, is_last);
+    let alt_block_sep = String::from("\n") + &shape.indent.block_only().to_string(context.config);
+    let alt_block_sep = alt_block_sep.as_str();
 
     let combine_orig_body = |body_str: &str| {
         let block_sep = match context.config.control_brace_style() {
@@ -1716,7 +1718,11 @@ fn rewrite_match_body(
 
     let forbid_same_line = has_guard && pats_str.contains('\n') && !is_empty_block;
     let next_line_indent = if is_block {
-        shape.indent
+        if is_empty_block {
+            shape.indent.block_indent(context.config)
+        } else {
+            shape.indent
+        }
     } else {
         shape.indent.block_indent(context.config)
     };
@@ -1772,7 +1778,7 @@ fn rewrite_match_body(
 
         match rewrite {
             Some(ref body_str)
-                if !forbid_same_line
+                if !forbid_same_line && !context.config.match_arm_forces_newline()
                     && (is_block
                         || (!body_str.contains('\n') && body_str.len() <= body_shape.width)) =>
             {
@@ -1871,7 +1877,9 @@ fn rewrite_pat_expr(
         } else {
             format!("{} ", matcher)
         };
-        let pat_shape = shape.offset_left(matcher.len())?.sub_width(connector.len())?;
+        let pat_shape = shape
+            .offset_left(matcher.len())?
+            .sub_width(connector.len())?;
         let pat_string = pat.rewrite(context, pat_shape)?;
         let result = format!("{}{}{}", matcher, pat_string, connector);
         return rewrite_assign_rhs(context, result, expr, shape);
@@ -2217,7 +2225,7 @@ fn rewrite_last_closure(
 ) -> Option<String> {
     if let ast::ExprKind::Closure(capture, ref fn_decl, ref body, _) = expr.node {
         let body = match body.node {
-            ast::ExprKind::Block(ref block) if block.stmts.len() == 1 => {
+            ast::ExprKind::Block(ref block) if is_simple_block(block, context.codemap) => {
                 stmt_expr(&block.stmts[0]).unwrap_or(body)
             }
             _ => body,
@@ -2357,11 +2365,24 @@ pub fn wrap_args_with_parens(
     }
 }
 
+/// Return true if a function call or a method call represented by the given span ends with a
+/// trailing comma. This function is used when rewriting macro, as adding or removing a trailing
+/// comma from macro can potentially break the code.
 fn span_ends_with_comma(context: &RewriteContext, span: Span) -> bool {
-    let snippet = context.snippet(span);
-    snippet
-        .trim_right_matches(|c: char| c == ')' || c.is_whitespace())
-        .ends_with(',')
+    let mut encountered_closing_paren = false;
+    for c in context.snippet(span).chars().rev() {
+        match c {
+            ',' => return true,
+            ')' => if encountered_closing_paren {
+                return false;
+            } else {
+                encountered_closing_paren = true;
+            },
+            _ if c.is_whitespace() => continue,
+            _ => return false,
+        }
+    }
+    false
 }
 
 fn rewrite_paren(context: &RewriteContext, subexpr: &ast::Expr, shape: Shape) -> Option<String> {
