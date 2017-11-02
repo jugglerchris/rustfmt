@@ -186,7 +186,7 @@ where
 /// relative to the original file.
 pub fn output_modified<W>(mut out: W, diff: Vec<Mismatch>)
 where
-    W: Write
+    W: Write,
 {
     for mismatch in diff {
         let (num_removed, num_added) = mismatch.lines.iter().fold(
@@ -198,7 +198,13 @@ where
             },
         );
         // Write a header with enough information to separate the modified lines.
-        writeln!(out, "{} {} {}", mismatch.line_number_orig, num_removed, num_added).unwrap();
+        writeln!(
+            out,
+            "{} {} {}",
+            mismatch.line_number_orig,
+            num_removed,
+            num_added
+        ).unwrap();
 
         for line in mismatch.lines {
             match line {

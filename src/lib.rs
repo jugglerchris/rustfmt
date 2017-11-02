@@ -26,7 +26,7 @@ extern crate unicode_segmentation;
 
 use std::collections::HashMap;
 use std::fmt;
-use std::io::{self, stdout, Write, BufRead};
+use std::io::{self, stdout, BufRead, Write};
 use std::iter::repeat;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -583,7 +583,7 @@ pub struct ModifiedLines {
 /// the changed ranges of lines.
 pub fn get_modified_lines(
     input: Input,
-    config: &Config
+    config: &Config,
 ) -> Result<(Summary, FileMap, FormatReport, ModifiedLines), (io::Error, Summary)> {
     let mut data = Vec::new();
 
@@ -595,7 +595,10 @@ pub fn get_modified_lines(
     let mut chunks = Vec::new();
     while let Some(Ok(header)) = lines.next() {
         // Parse the header line
-        let values: Vec<_> = header.split(' ').map(|s| s.parse::<u32>().unwrap()).collect();
+        let values: Vec<_> = header
+            .split(' ')
+            .map(|s| s.parse::<u32>().unwrap())
+            .collect();
         assert_eq!(values.len(), 3);
         let line_number = values[0];
         let num_removed = values[1];
@@ -610,9 +613,12 @@ pub fn get_modified_lines(
             lines: added_lines,
         });
     }
-    Ok((summary, filemap, formatreport, ModifiedLines {
-        chunks: chunks,
-     }))
+    Ok((
+        summary,
+        filemap,
+        formatreport,
+        ModifiedLines { chunks: chunks },
+    ))
 }
 
 #[derive(Debug)]
