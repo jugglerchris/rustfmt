@@ -162,15 +162,7 @@ where
             if let Ok((ori, fmt)) = source_and_formatted_text(text, filename, config) {
                 let mismatch = make_diff(&ori, &fmt, 0);
                 let has_diff = !mismatch.is_empty();
-                output_modified(out, mismatch, |line_num, num_removed, num_added| {
-                    format!(
-                        "Replaced {} lines at {} with {} new lines in {}:",
-                        num_removed,
-                        line_num,
-                        num_added,
-                        filename
-                    )
-                });
+                output_modified(out, mismatch);
                 return Ok(has_diff);
             }
         }

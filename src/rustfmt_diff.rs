@@ -178,10 +178,15 @@ where
     }
 }
 
-pub fn output_modified<W, F>(mut out: W, diff: Vec<Mismatch>, get_section_title: F)
+/// Convert a Mismatch into a serialised form which just includes
+/// enough information to modify the original file.
+/// Each section starts with a line with three integers, space separated:
+///     lineno num_removed num_added
+/// followd by (num_added) lines of added text.  The line numbers are
+/// relative to the original file.
+pub fn output_modified<W>(mut out: W, diff: Vec<Mismatch>)
 where
-    W: Write,
-    F: Fn(u32, u32, u32) -> String,
+    W: Write
 {
     for mismatch in diff {
         let (num_removed, num_added) = mismatch.lines.iter().fold(
@@ -192,8 +197,8 @@ where
                 DiffLine::Resulting(_) => (rem + 1, add),
             },
         );
-        let title = get_section_title(mismatch.line_number_orig, num_removed, num_added);
-        writeln!(out, "{}", title).unwrap();
+        // Write a header with enough information to separate the modified lines.
+        writeln!(out, "{} {} {}", mismatch.line_number_orig, num_removed, num_added).unwrap();
 
         for line in mismatch.lines {
             match line {
