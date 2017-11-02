@@ -14,7 +14,7 @@ use std::borrow::Cow;
 use std::cmp::min;
 
 use syntax::{abi, ast, ptr, symbol};
-use syntax::ast::ImplItem;
+use syntax::ast::{CrateSugar, ImplItem};
 use syntax::codemap::{BytePos, Span};
 use syntax::visit;
 
@@ -184,25 +184,29 @@ impl<'a> FnSig<'a> {
         }
     }
 
-    pub fn from_method_sig(method_sig: &'a ast::MethodSig) -> FnSig {
+    pub fn from_method_sig(
+        method_sig: &'a ast::MethodSig,
+        generics: &'a ast::Generics,
+    ) -> FnSig<'a> {
         FnSig {
             unsafety: method_sig.unsafety,
             constness: method_sig.constness.node,
             defaultness: ast::Defaultness::Final,
             abi: method_sig.abi,
             decl: &*method_sig.decl,
-            generics: &method_sig.generics,
+            generics: generics,
             visibility: ast::Visibility::Inherited,
         }
     }
 
     pub fn from_fn_kind(
         fn_kind: &'a visit::FnKind,
+        generics: &'a ast::Generics,
         decl: &'a ast::FnDecl,
         defualtness: ast::Defaultness,
     ) -> FnSig<'a> {
         match *fn_kind {
-            visit::FnKind::ItemFn(_, generics, unsafety, constness, abi, visibility, _) => FnSig {
+            visit::FnKind::ItemFn(_, unsafety, constness, abi, visibility, _) => FnSig {
                 decl: decl,
                 generics: generics,
                 abi: abi,
@@ -212,7 +216,7 @@ impl<'a> FnSig<'a> {
                 visibility: visibility.clone(),
             },
             visit::FnKind::Method(_, ref method_sig, vis, _) => {
-                let mut fn_sig = FnSig::from_method_sig(method_sig);
+                let mut fn_sig = FnSig::from_method_sig(method_sig, generics);
                 fn_sig.defaultness = defualtness;
                 if let Some(vis) = vis {
                     fn_sig.visibility = vis.clone();
@@ -338,6 +342,7 @@ impl<'a> FmtVisitor<'a> {
         indent: Indent,
         ident: ast::Ident,
         sig: &ast::MethodSig,
+        generics: &ast::Generics,
         span: Span,
     ) -> Option<String> {
         // Drop semicolon or it will be interpreted as comment.
@@ -348,7 +353,7 @@ impl<'a> FmtVisitor<'a> {
             &context,
             indent,
             ident,
-            &FnSig::from_method_sig(sig),
+            &FnSig::from_method_sig(sig, generics),
             span,
             false,
             false,
@@ -1230,13 +1235,13 @@ fn format_tuple_struct(
         }
         result.push(')');
     } else {
-        // 3 = `();`
+        // 1 = ","
         let body = rewrite_call_inner(
             context,
             "",
             &fields.iter().map(|field| field).collect::<Vec<_>>()[..],
             span,
-            Shape::legacy(context.budget(last_line_width(&result) + 3), offset),
+            Shape::indented(offset, context.config).sub_width(1)?,
             context.config.fn_call_width(),
             false,
         )?;
@@ -1760,10 +1765,12 @@ fn rewrite_fn_base(
     }
 
     // Skip `pub(crate)`.
-    let lo_after_visibility = if let ast::Visibility::Crate(s) = fn_sig.visibility {
-        context.codemap.span_after(mk_sp(s.hi(), span.hi()), ")")
-    } else {
-        span.lo()
+    let lo_after_visibility = match fn_sig.visibility {
+        ast::Visibility::Crate(s, CrateSugar::PubCrate) => {
+            context.codemap.span_after(mk_sp(s.hi(), span.hi()), ")")
+        }
+        ast::Visibility::Crate(s, CrateSugar::JustCrate) => s.hi(),
+        _ => span.lo(),
     };
     // A conservative estimation, to goal is to be over all parens in generics
     let args_start = fn_sig
@@ -2732,6 +2739,10 @@ impl Rewrite for ast::ForeignItem {
                     };
                     format!("{}{}{};", prefix, sep, ty_str)
                 })
+            }
+            ast::ForeignItemKind::Ty => {
+                let vis = format_visibility(&self.vis);
+                Some(format!("{}type {};", vis, self.ident))
             }
         }?;
 

@@ -170,7 +170,7 @@ pub fn format_expr(
         ast::ExprKind::TupField(..) |
         ast::ExprKind::MethodCall(..) => rewrite_chain(expr, context, shape),
         ast::ExprKind::Mac(ref mac) => {
-            // Failure to rewrite a marco should not imply failure to
+            // Failure to rewrite a macro should not imply failure to
             // rewrite the expression.
             rewrite_macro(mac, None, context, shape, MacroPosition::Expression)
                 .or_else(|| Some(context.snippet(expr.span)))
@@ -1444,15 +1444,10 @@ fn rewrite_match(
     span: Span,
     attrs: &[ast::Attribute],
 ) -> Option<String> {
-    if arms.is_empty() {
-        return None;
-    }
-
     // Do not take the rhs overhead from the upper expressions into account
     // when rewriting match condition.
-    let new_width = context.config.max_width().checked_sub(shape.used_width())?;
     let cond_shape = Shape {
-        width: new_width,
+        width: context.budget(shape.used_width()),
         ..shape
     };
     // 6 = `match `
@@ -1485,9 +1480,12 @@ fn rewrite_match(
     };
 
     let open_brace_pos = if inner_attrs.is_empty() {
-        context
-            .codemap
-            .span_after(mk_sp(cond.span.hi(), arms[0].span().lo()), "{")
+        let hi = if arms.is_empty() {
+            span.hi()
+        } else {
+            arms[0].span().lo()
+        };
+        context.codemap.span_after(mk_sp(cond.span.hi(), hi), "{")
     } else {
         inner_attrs[inner_attrs.len() - 1].span().hi()
     };
@@ -1498,15 +1496,25 @@ fn rewrite_match(
         shape.indent.to_string(context.config)
     };
 
-    Some(format!(
-        "match {}{}{{\n{}{}{}\n{}}}",
-        cond_str,
-        block_sep,
-        inner_attrs_str,
-        arm_indent_str,
-        rewrite_match_arms(context, arms, shape, span, open_brace_pos,)?,
-        shape.indent.to_string(context.config),
-    ))
+    if arms.is_empty() {
+        let snippet = context.snippet(mk_sp(open_brace_pos, span.hi() - BytePos(1)));
+        if snippet.trim().is_empty() {
+            Some(format!("match {} {{}}", cond_str))
+        } else {
+            // Empty match with comments or inner attributes? We are not going to bother, sorry ;)
+            Some(context.snippet(span))
+        }
+    } else {
+        Some(format!(
+            "match {}{}{{\n{}{}{}\n{}}}",
+            cond_str,
+            block_sep,
+            inner_attrs_str,
+            arm_indent_str,
+            rewrite_match_arms(context, arms, shape, span, open_brace_pos)?,
+            shape.indent.to_string(context.config),
+        ))
+    }
 }
 
 fn arm_comma(config: &Config, body: &ast::Expr, is_last: bool) -> &'static str {
@@ -1947,7 +1955,11 @@ fn rewrite_string_lit(context: &RewriteContext, span: Span, shape: Shape) -> Opt
     // Remove the quote characters.
     let str_lit = &string_lit[1..string_lit.len() - 1];
 
-    rewrite_string(str_lit, &StringFormat::new(shape, context.config))
+    rewrite_string(
+        str_lit,
+        &StringFormat::new(shape.visual_indent(0), context.config),
+        None,
+    )
 }
 
 fn string_requires_rewrite(

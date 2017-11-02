@@ -333,7 +333,7 @@ where
             Ok(result) => result,
             Err(e) => {
                 // Create a new error with path_str to help users see which files failed
-                let mut err_msg = path_str.to_string() + &": ".to_string() + &e.to_string();
+                let err_msg = path_str.to_string() + &": ".to_string() + &e.to_string();
                 return Err(io::Error::new(e.kind(), err_msg));
             }
         };
@@ -521,6 +521,7 @@ pub fn format_input<T: Write>(
     let silent_emitter = Box::new(EmitterWriter::new(
         Box::new(Vec::new()),
         Some(codemap.clone()),
+        false,
     ));
     parse_session.span_diagnostic = Handler::with_emitter(true, false, silent_emitter);
 
@@ -629,7 +630,9 @@ pub fn run(input: Input, config: &Config) -> Summary {
 
             if report.has_warnings() {
                 match term::stderr() {
-                    Some(ref t) if isatty() && t.supports_color() => {
+                    Some(ref t)
+                        if isatty() && t.supports_color() && t.supports_attr(term::Attr::Bold) =>
+                    {
                         match report.print_warnings_fancy(term::stderr().unwrap()) {
                             Ok(..) => (),
                             Err(..) => panic!("Unable to write to stderr: {}", report),

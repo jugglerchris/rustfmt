@@ -21,7 +21,7 @@ fn simple(
 
 fn weird_comment(
     // /*/ double level */ comment
-    x: Hello, // /*/* tripple, even */*/
+    x: Hello, // /*/* triple, even */*/
     // Does this work?
     y: World,
 ) {
@@ -104,3 +104,5 @@ mod foo {
 
 // #2082
 pub(crate) fn init() {}
+
+crate fn init() {}

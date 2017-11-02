@@ -261,12 +261,12 @@ fn filter_packages_with_hitlist<'a>(
     packages: Vec<Value>,
     workspace_hitlist: &'a WorkspaceHitlist,
 ) -> Result<Vec<Value>, &'a String> {
-    if *workspace_hitlist == WorkspaceHitlist::All {
+    let some_hitlist: Option<HashSet<&String>> =
+        workspace_hitlist.get_some().map(HashSet::from_iter);
+    if some_hitlist.is_none() {
         return Ok(packages);
     }
-    let mut hitlist: HashSet<&String> = workspace_hitlist
-        .get_some()
-        .map_or(HashSet::new(), HashSet::from_iter);
+    let mut hitlist = some_hitlist.unwrap();
     let members: Vec<Value> = packages
         .into_iter()
         .filter(|member| {
@@ -329,9 +329,16 @@ fn get_targets(workspace_hitlist: &WorkspaceHitlist) -> Result<Vec<Target>, io::
         let packages = get_packages(&output.stdout)?;
 
         // If we can find any local dependencies, we will try to get targets from those as well.
-        for path in get_path_to_local_dependencies(&packages) {
-            env::set_current_dir(path)?;
-            targets.append(&mut get_targets(workspace_hitlist)?);
+        if *workspace_hitlist == WorkspaceHitlist::All {
+            for path in get_path_to_local_dependencies(&packages) {
+                match env::set_current_dir(path) {
+                    Ok(..) => match get_targets(workspace_hitlist) {
+                        Ok(ref mut t) => targets.append(t),
+                        Err(..) => continue,
+                    },
+                    Err(..) => continue,
+                }
+            }
         }
 
         env::set_current_dir(cur_dir)?;
