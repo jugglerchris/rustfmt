@@ -75,7 +75,7 @@ fn checkstyle_test() {
 fn modified_test() {
     // Test "modified" output
     let filename = "tests/writemode/source/modified.rs";
-    let (summary, filemap, report, modified) =
+    let (_summary, _filemap, _report, modified) =
         get_modified_lines(Input::File(filename.into()), &Config::default()).unwrap();
     assert_eq!(
         modified,
