@@ -13,7 +13,6 @@ use diff;
 use std::collections::VecDeque;
 use std::io;
 use term;
-use utils::isatty;
 use std::io::Write;
 use utils::use_colored_tty;
 
