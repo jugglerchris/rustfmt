@@ -1,5 +1,5 @@
-// rustfmt-fn_args_layout: Block
-// rustfmt-fn_brace_style: PreferSameLine
+// rustfmt-indent_style: Block
+// rustfmt-brace_style: PreferSameLine
 // Test different indents.
 
 fn foo(a: Aaaaaaaaaaaaaa, b: Bbbbbbbbbbbbbb) {

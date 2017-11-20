@@ -1,7 +1,4 @@
-// rustfmt-fn_args_layout: Block
-// rustfmt-fn_call_style: Block
-// rustfmt-generics_indent: Block
-// rustfmt-where_style: Rfc
+// rustfmt-indent_style: Block
 
 // #1357
 impl<'a, Select, From, Distinct, Where, Order, Limit, Offset, Groupby, DB> InternalBoxedDsl<'a, DB>
@@ -81,8 +78,7 @@ impl<M, S, F, X> SubSelectDirect<M, S, F, X>
 where
     M: select::Selector,
     S: event::Stream,
-    F: for<'t> FnMut(transform::Api<'t, Stream<ContentStream<S>>>)
-        -> transform::Api<'t, X>,
+    F: for<'t> FnMut(transform::Api<'t, Stream<ContentStream<S>>>) -> transform::Api<'t, X>,
     X: event::Stream,
 {
 }

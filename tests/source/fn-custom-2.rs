@@ -1,5 +1,4 @@
-// rustfmt-fn_args_layout: Block
-// rustfmt-generics_indent: Block
+// rustfmt-indent_style: Block
 // rustfmt-where_layout: Mixed
 // Test different indents.
 

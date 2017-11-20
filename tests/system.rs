@@ -23,7 +23,7 @@ use std::str::Chars;
 
 use rustfmt::*;
 use rustfmt::filemap::{write_system_newlines, FileMap};
-use rustfmt::config::{Config, ReportTactic};
+use rustfmt::config::{Color, Config, ReportTactic};
 use rustfmt::rustfmt_diff::*;
 
 const DIFF_CONTEXT_SIZE: usize = 3;
@@ -253,9 +253,11 @@ fn print_mismatches(result: HashMap<String, Vec<Mismatch>>) {
     let mut t = term::stdout().unwrap();
 
     for (file_name, diff) in result {
-        print_diff(diff, |line_num| {
-            format!("\nMismatch at {}:{}:", file_name, line_num)
-        });
+        print_diff(
+            diff,
+            |line_num| format!("\nMismatch at {}:{}:", file_name, line_num),
+            Color::Auto,
+        );
     }
 
     t.reset().unwrap();
@@ -471,15 +473,17 @@ struct CharsIgnoreNewlineRepr<'a>(Peekable<Chars<'a>>);
 impl<'a> Iterator for CharsIgnoreNewlineRepr<'a> {
     type Item = char;
     fn next(&mut self) -> Option<char> {
-        self.0.next().map(|c| if c == '\r' {
-            if *self.0.peek().unwrap_or(&'\0') == '\n' {
-                self.0.next();
-                '\n'
+        self.0.next().map(|c| {
+            if c == '\r' {
+                if *self.0.peek().unwrap_or(&'\0') == '\n' {
+                    self.0.next();
+                    '\n'
+                } else {
+                    '\r'
+                }
             } else {
-                '\r'
+                c
             }
-        } else {
-            c
         })
     }
 }

@@ -16,7 +16,7 @@ use spanned::Spanned;
 use codemap::SpanUtils;
 use comment::FindUncommented;
 use expr::{can_be_overflowed_expr, rewrite_call_inner, rewrite_pair, rewrite_unary_prefix,
-           wrap_struct_field};
+           wrap_struct_field, PairParts};
 use lists::{itemize_list, shape_for_tactic, struct_lit_formatting, struct_lit_shape,
             struct_lit_tactic, write_list, DefinitiveListTactic, SeparatorPlace, SeparatorTactic};
 use rewrite::{Rewrite, RewriteContext};
@@ -65,9 +65,7 @@ impl Rewrite for Pat {
                 rewrite_pair(
                     &**lhs,
                     &**rhs,
-                    "",
-                    infix,
-                    "",
+                    PairParts::new("", infix, ""),
                     context,
                     shape,
                     SeparatorPlace::Front,
@@ -111,7 +109,7 @@ impl Rewrite for Pat {
                 let pats = pats?;
 
                 // Unwrap all the sub-strings and join them with commas.
-                let result = if context.config.spaces_within_square_brackets() {
+                let result = if context.config.spaces_within_parens_and_brackets() {
                     format!("[ {} ]", pats.join(", "))
                 } else {
                     format!("[{}]", pats.join(", "))

@@ -35,7 +35,7 @@ use rewrite::{Rewrite, RewriteContext};
 use shape::{Indent, Shape};
 use utils::mk_sp;
 
-const FORCED_BRACKET_MACROS: &'static [&'static str] = &["vec!"];
+const FORCED_BRACKET_MACROS: &[&str] = &["vec!"];
 
 // FIXME: use the enum from libsyntax?
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -70,10 +70,10 @@ pub enum MacroArg {
 
 impl Rewrite for MacroArg {
     fn rewrite(&self, context: &RewriteContext, shape: Shape) -> Option<String> {
-        match self {
-            &MacroArg::Expr(ref expr) => expr.rewrite(context, shape),
-            &MacroArg::Ty(ref ty) => ty.rewrite(context, shape),
-            &MacroArg::Pat(ref pat) => pat.rewrite(context, shape),
+        match *self {
+            MacroArg::Expr(ref expr) => expr.rewrite(context, shape),
+            MacroArg::Ty(ref ty) => ty.rewrite(context, shape),
+            MacroArg::Pat(ref pat) => pat.rewrite(context, shape),
         }
     }
 }
@@ -219,7 +219,7 @@ pub fn rewrite_macro(
             let mac_shape = shape.offset_left(macro_name.len())?;
             // Handle special case: `vec![expr; expr]`
             if vec_with_semi {
-                let (lbr, rbr) = if context.config.spaces_within_square_brackets() {
+                let (lbr, rbr) = if context.config.spaces_within_parens_and_brackets() {
                     ("[ ", " ]")
                 } else {
                     ("[", "]")

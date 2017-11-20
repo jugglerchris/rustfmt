@@ -572,10 +572,12 @@ where
             let comment_end = match self.inner.peek() {
                 Some(..) => {
                     let mut block_open_index = post_snippet.find("/*");
-                    // check if it really is a block comment (and not //*)
+                    // check if it really is a block comment (and not `//*` or a nested comment)
                     if let Some(i) = block_open_index {
-                        if i > 0 && &post_snippet[i - 1..i] == "/" {
-                            block_open_index = None;
+                        match post_snippet.find("/") {
+                            Some(j) if j < i => block_open_index = None,
+                            _ if i > 0 && &post_snippet[i - 1..i] == "/" => block_open_index = None,
+                            _ => (),
                         }
                     }
                     let newline_index = post_snippet.find('\n');
@@ -602,7 +604,11 @@ where
                         // Match arms may not have trailing comma. In any case, for match arms,
                         // we will assume that the post comment belongs to the next arm if they
                         // do not end with trailing comma.
-                        1
+                        if let Some(newline_index) = newline_index {
+                            newline_index + 1
+                        } else {
+                            0
+                        }
                     }
                 }
                 None => post_snippet
@@ -737,7 +743,7 @@ pub fn struct_lit_shape(
     prefix_width: usize,
     suffix_width: usize,
 ) -> Option<(Option<Shape>, Shape)> {
-    let v_shape = match context.config.struct_lit_style() {
+    let v_shape = match context.config.indent_style() {
         IndentStyle::Visual => shape
             .visual_indent(0)
             .shrink_left(prefix_width)?
@@ -766,7 +772,7 @@ pub fn struct_lit_tactic(
     items: &[ListItem],
 ) -> DefinitiveListTactic {
     if let Some(h_shape) = h_shape {
-        let prelim_tactic = match (context.config.struct_lit_style(), items.len()) {
+        let prelim_tactic = match (context.config.indent_style(), items.len()) {
             (IndentStyle::Visual, 1) => ListTactic::HorizontalVertical,
             _ => context.config.struct_lit_multiline_style().to_list_tactic(),
         };
@@ -797,7 +803,7 @@ pub fn struct_lit_formatting<'a>(
     context: &'a RewriteContext,
     force_no_trailing_comma: bool,
 ) -> ListFormatting<'a> {
-    let ends_with_newline = context.config.struct_lit_style() != IndentStyle::Visual
+    let ends_with_newline = context.config.indent_style() != IndentStyle::Visual
         && tactic == DefinitiveListTactic::Vertical;
     ListFormatting {
         tactic: tactic,

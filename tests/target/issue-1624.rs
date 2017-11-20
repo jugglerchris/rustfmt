@@ -1,4 +1,4 @@
-// rustfmt-fn_args_layout: Block
+// rustfmt-indent_style: Block
 // rustfmt-fn_args_paren_newline: false
 
 // #1624

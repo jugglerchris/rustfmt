@@ -1,6 +1,6 @@
 // rustfmt-normalize_comments: true
 // rustfmt-single_line_if_else_max_width: 0
-// rustfmt-chain_one_line_max: 100
+// rustfmt-chain_width: 100
 // Test chain formatting.
 
 fn main() {
@@ -23,10 +23,12 @@ fn main() {
         false => (),
     });
 
-    loong_func().quux(move || if true {
-        1
-    } else {
-        2
+    loong_func().quux(move || {
+        if true {
+            1
+        } else {
+            2
+        }
     });
 
     some_fuuuuuuuuunction().method_call_a(aaaaa, bbbbb, |c| {
@@ -189,5 +191,27 @@ impl Settings {
     fn save(&self) -> Result<()> {
         let mut file = File::create(&settings_path)
             .chain_err(|| ErrorKind::WriteError(settings_path.clone()))?;
+    }
+}
+
+fn issue2126() {
+    {
+        {
+            {
+                {
+                    {
+                        let x = self.span_from(
+                            sub_span.expect("No span found for struct arant variant"),
+                        );
+                        self.sspanpan_from_span(
+                            sub_span.expect("No span found for struct variant"),
+                        );
+                        let x = self.spanpan_from_span(
+                            sub_span.expect("No span found for struct variant"),
+                        )?;
+                    }
+                }
+            }
+        }
     }
 }

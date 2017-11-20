@@ -25,7 +25,7 @@ use getopts::{HasArg, Matches, Occur, Options};
 
 use rustfmt::{run, Input, Summary};
 use rustfmt::file_lines::FileLines;
-use rustfmt::config::{get_toml_path, Config, WriteMode};
+use rustfmt::config::{get_toml_path, Color, Config, WriteMode};
 
 type FmtError = Box<error::Error + Send + Sync>;
 type FmtResult<T> = std::result::Result<T, FmtError>;
@@ -45,7 +45,9 @@ enum Operation {
     /// Print detailed configuration help.
     ConfigHelp,
     /// Output default config to a file, or stdout if None
-    ConfigOutputDefault { path: Option<String> },
+    ConfigOutputDefault {
+        path: Option<String>,
+    },
     /// No file specified, read from stdin
     Stdin {
         input: String,
@@ -59,6 +61,7 @@ struct CliOptions {
     skip_children: bool,
     verbose: bool,
     write_mode: Option<WriteMode>,
+    color: Option<Color>,
     file_lines: FileLines, // Default is all lines in all files.
     unstable_features: bool,
 }
@@ -73,9 +76,9 @@ impl CliOptions {
             .map(|c| c == "nightly")
             .unwrap_or(false);
         if unstable_features && !rust_nightly {
-            return Err(FmtError::from(format!(
-                "Unstable features are only available on Nightly channel"
-            )));
+            return Err(FmtError::from(
+                "Unstable features are only available on Nightly channel",
+            ));
         } else {
             options.unstable_features = unstable_features;
         }
@@ -87,6 +90,13 @@ impl CliOptions {
                 return Err(FmtError::from(
                     format!("Invalid write-mode: {}", write_mode),
                 ));
+            }
+        }
+
+        if let Some(ref color) = matches.opt_str("color") {
+            match Color::from_str(color) {
+                Ok(color) => options.color = Some(color),
+                _ => return Err(FmtError::from(format!("Invalid color: {}", color))),
             }
         }
 
@@ -104,6 +114,9 @@ impl CliOptions {
         config.set().unstable_features(self.unstable_features);
         if let Some(write_mode) = self.write_mode {
             config.set().write_mode(write_mode);
+        }
+        if let Some(color) = self.color {
+            config.set().color(color);
         }
     }
 }
@@ -130,6 +143,12 @@ fn make_opts() -> Options {
         "write-mode",
         "how to write output (not usable when piping from stdin)",
         "[replace|overwrite|display|plain|diff|coverage|checkstyle]",
+    );
+    opts.optopt(
+        "",
+        "color",
+        "use colored output (if supported)",
+        "[always|never|auto]",
     );
     opts.optflag("", "skip-children", "don't reformat child modules");
 

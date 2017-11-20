@@ -311,10 +311,12 @@ fn rewrite_comment_inner(
             line
         })
         .map(|s| left_trim_comment_line(s, &style))
-        .map(|line| if orig.starts_with("/*") && line_breaks == 0 {
-            line.trim_left()
-        } else {
-            line
+        .map(|line| {
+            if orig.starts_with("/*") && line_breaks == 0 {
+                line.trim_left()
+            } else {
+                line
+            }
         });
 
     let mut result = opener.to_owned();
@@ -325,12 +327,10 @@ fn rewrite_comment_inner(
             if line.is_empty() {
                 continue;
             }
+        } else if is_prev_line_multi_line && !line.is_empty() {
+            result.push(' ')
         } else {
-            if is_prev_line_multi_line && !line.is_empty() {
-                result.push(' ')
-            } else {
-                result.push_str(&comment_line_separator);
-            }
+            result.push_str(&comment_line_separator);
         }
 
         if config.wrap_comments() && line.len() > fmt.shape.width && !has_url(line) {

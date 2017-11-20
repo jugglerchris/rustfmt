@@ -8,12 +8,14 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use config::Color;
 use diff;
 use std::collections::VecDeque;
 use std::io;
 use term;
 use utils::isatty;
 use std::io::Write;
+use utils::use_colored_tty;
 
 #[derive(Debug, PartialEq)]
 pub enum DiffLine {
@@ -111,12 +113,12 @@ pub fn make_diff(expected: &str, actual: &str, context_size: usize) -> Vec<Misma
     results
 }
 
-pub fn print_diff<F>(diff: Vec<Mismatch>, get_section_title: F)
+pub fn print_diff<F>(diff: Vec<Mismatch>, get_section_title: F, color: Color)
 where
     F: Fn(u32) -> String,
 {
     match term::stdout() {
-        Some(ref t) if isatty() && t.supports_color() => {
+        Some(ref t) if use_colored_tty(color) && t.supports_color() => {
             print_diff_fancy(diff, get_section_title, term::stdout().unwrap())
         }
         _ => print_diff_basic(diff, get_section_title),

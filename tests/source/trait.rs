@@ -57,3 +57,17 @@ trait X /* comment */ {}
 trait Y // comment
 {
 }
+
+// #2055
+pub trait Foo:
+// A and C
+A + C
+// and B
+    + B
+{}
+
+// #2158
+trait Foo {
+    type ItRev = <MergingUntypedTimeSeries<SliceSeries<SliceWindow>> as UntypedTimeSeries>::IterRev;
+    type IteRev = <MergingUntypedTimeSeries<SliceSeries<SliceWindow>> as UntypedTimeSeries>::IterRev;
+}

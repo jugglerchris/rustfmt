@@ -258,3 +258,18 @@ struct Loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
 struct Looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong {}
 struct Loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong {}
 struct Loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong { x: i32 }
+
+// structs with visibility, do not duplicate visibility (#2110).
+pub(in self) struct Foo{}
+pub(super) struct Foo{}
+pub(crate) struct Foo{}
+pub(in self) struct Foo();
+pub(super) struct Foo();
+pub(crate) struct Foo();
+
+// #2125
+pub struct ReadinessCheckRegistry(Mutex<HashMap<Arc<String>, Box<Fn() -> ReadinessCheck + Sync + Send>>>);
+
+// #2144 unit struct with generics
+struct MyBox<T:?Sized>;
+struct MyBoxx<T, S> where T: ?Sized, S: Clone;

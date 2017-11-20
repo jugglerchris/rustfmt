@@ -128,15 +128,13 @@ fn issue339() {
         h => {
             // comment above block
         }
-        i => {}
-        // comment below block
+        i => {} // comment below block
         j => {
             // comment inside block
         }
         j2 => {
             // comments inside...
-        }
-        // ... and after
+        } // ... and after
         // TODO uncomment when vertical whitespace is handled better
         // k => {
         //
@@ -462,4 +460,35 @@ fn issue_2099() {
     let b = match x {};
 
     match x {}
+}
+
+// #2021
+impl<'tcx> Const<'tcx> {
+    pub fn from_constval<'a>() -> Const<'tcx> {
+        let val = match *cv {
+            ConstVal::Variant(_) | ConstVal::Aggregate(..) | ConstVal::Unevaluated(..) => bug!(
+                "MIR must not use `{:?}` (aggregates are expanded to MIR rvalues)",
+                cv
+            ),
+        };
+    }
+}
+
+// #2151
+fn issue_2151() {
+    match either {
+        x => {}
+        y => (),
+    }
+}
+
+// #2152
+fn issue_2152() {
+    match m {
+        "aaaaaaaaaaaaa" | "bbbbbbbbbbbbb" | "cccccccccccccccccccccccccccccccccccccccccccc"
+            if true => {}
+        "bind" | "writev" | "readv" | "sendmsg" | "recvmsg" if android && (aarch64 || x86_64) => {
+            true
+        }
+    }
 }

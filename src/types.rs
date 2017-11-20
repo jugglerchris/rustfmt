@@ -18,14 +18,15 @@ use syntax::symbol::keywords;
 
 use spanned::Spanned;
 use codemap::SpanUtils;
-use config::{IndentStyle, Style, TypeDensity};
-use expr::{rewrite_pair, rewrite_tuple, rewrite_unary_prefix, wrap_args_with_parens};
+use config::{IndentStyle, TypeDensity};
+use expr::{rewrite_pair, rewrite_tuple, rewrite_unary_prefix, wrap_args_with_parens, PairParts};
 use items::{format_generics_item_list, generics_shape_from_config};
 use lists::{definitive_tactic, itemize_list, write_list, ListFormatting, ListTactic, Separator,
             SeparatorPlace, SeparatorTactic};
 use rewrite::{Rewrite, RewriteContext};
 use shape::Shape;
-use utils::{colon_spaces, extra_offset, format_abi, format_mutability, last_line_width, mk_sp};
+use utils::{colon_spaces, extra_offset, first_line_width, format_abi, format_mutability,
+            last_line_width, mk_sp};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum PathContext {
@@ -54,7 +55,7 @@ pub fn rewrite_path(
 
     if let Some(qself) = qself {
         result.push('<');
-        if context.config.spaces_within_angle_brackets() {
+        if context.config.spaces_within_parens_and_brackets() {
             result.push_str(" ")
         }
 
@@ -81,7 +82,7 @@ pub fn rewrite_path(
             )?;
         }
 
-        if context.config.spaces_within_angle_brackets() {
+        if context.config.spaces_within_parens_and_brackets() {
             result.push_str(" ")
         }
 
@@ -302,7 +303,7 @@ where
     // 2 for ()
     let budget = shape.width.checked_sub(2)?;
     // 1 for (
-    let offset = match context.config.fn_args_layout() {
+    let offset = match context.config.indent_style() {
         IndentStyle::Block => {
             shape
                 .block()
@@ -357,15 +358,16 @@ where
         },
         separator_place: SeparatorPlace::Back,
         shape: list_shape,
-        ends_with_newline: tactic.ends_with_newline(context.config.fn_call_style()),
+        ends_with_newline: tactic.ends_with_newline(context.config.indent_style()),
         preserve_newline: true,
         config: context.config,
     };
 
     let list_str = write_list(&item_vec, &fmt)?;
 
-    let ty_shape = match context.config.fn_args_layout() {
-        IndentStyle::Block => shape.block().block_indent(context.config.tab_spaces()),
+    let ty_shape = match context.config.indent_style() {
+        // 4 = " -> "
+        IndentStyle::Block => shape.offset_left(4)?,
         IndentStyle::Visual => shape.block_left(4)?,
     };
     let output = match *output {
@@ -376,31 +378,30 @@ where
         FunctionRetTy::Default(..) => String::new(),
     };
 
-    let shape = shape.sub_width(output.len())?;
-    let extendable = !list_str.contains('\n') || list_str.is_empty();
+    let extendable = (!list_str.contains('\n') || list_str.is_empty()) && !output.contains("\n");
     let args = wrap_args_with_parens(
         context,
         &list_str,
         extendable,
-        shape,
+        shape.sub_width(first_line_width(&output))?,
         Shape::indented(offset, context.config),
     );
-    if last_line_width(&args) + output.len() > shape.width {
+    if last_line_width(&args) + first_line_width(&output) <= shape.width {
+        Some(format!("{}{}", args, output))
+    } else {
         Some(format!(
             "{}\n{}{}",
             args,
             offset.to_string(context.config),
             output.trim_left()
         ))
-    } else {
-        Some(format!("{}{}", args, output))
     }
 }
 
 fn type_bound_colon(context: &RewriteContext) -> &'static str {
     colon_spaces(
-        context.config.space_before_bound(),
-        context.config.space_after_bound_colon(),
+        context.config.space_before_colon(),
+        context.config.space_after_colon(),
     )
 }
 
@@ -434,7 +435,9 @@ impl Rewrite for ast::WherePredicate {
                         .collect::<Option<Vec<_>>>()?;
                     let bounds_str = join_bounds(context, ty_shape, &bounds);
 
-                    if context.config.spaces_within_angle_brackets() && !lifetime_str.is_empty() {
+                    if context.config.spaces_within_parens_and_brackets()
+                        && !lifetime_str.is_empty()
+                    {
                         format!(
                             "for< {} > {}{}{}",
                             lifetime_str,
@@ -447,9 +450,9 @@ impl Rewrite for ast::WherePredicate {
                     }
                 } else {
                     let used_width = type_str.len() + colon.len();
-                    let ty_shape = match context.config.where_style() {
-                        Style::Legacy => shape.block_left(used_width)?,
-                        Style::Rfc => shape,
+                    let ty_shape = match context.config.indent_style() {
+                        IndentStyle::Visual => shape.block_left(used_width)?,
+                        IndentStyle::Block => shape,
                     };
                     let bounds = bounds
                         .iter()
@@ -600,7 +603,7 @@ impl Rewrite for ast::PolyTraitRef {
                 .rewrite(context, shape.offset_left(extra_offset)?)?;
 
             Some(
-                if context.config.spaces_within_angle_brackets() && !lifetime_str.is_empty() {
+                if context.config.spaces_within_parens_and_brackets() && !lifetime_str.is_empty() {
                     format!("for< {} > {}", lifetime_str, path_str)
                 } else {
                     format!("for<{}> {}", lifetime_str, path_str)
@@ -670,28 +673,32 @@ impl Rewrite for ast::Ty {
             ast::TyKind::Paren(ref ty) => {
                 let budget = shape.width.checked_sub(2)?;
                 ty.rewrite(context, Shape::legacy(budget, shape.indent + 1))
-                    .map(|ty_str| if context.config.spaces_within_parens() {
-                        format!("( {} )", ty_str)
-                    } else {
-                        format!("({})", ty_str)
+                    .map(|ty_str| {
+                        if context.config.spaces_within_parens_and_brackets() {
+                            format!("( {} )", ty_str)
+                        } else {
+                            format!("({})", ty_str)
+                        }
                     })
             }
             ast::TyKind::Slice(ref ty) => {
-                let budget = if context.config.spaces_within_square_brackets() {
+                let budget = if context.config.spaces_within_parens_and_brackets() {
                     shape.width.checked_sub(4)?
                 } else {
                     shape.width.checked_sub(2)?
                 };
                 ty.rewrite(context, Shape::legacy(budget, shape.indent + 1))
-                    .map(|ty_str| if context.config.spaces_within_square_brackets() {
-                        format!("[ {} ]", ty_str)
-                    } else {
-                        format!("[{}]", ty_str)
+                    .map(|ty_str| {
+                        if context.config.spaces_within_parens_and_brackets() {
+                            format!("[ {} ]", ty_str)
+                        } else {
+                            format!("[{}]", ty_str)
+                        }
                     })
             }
             ast::TyKind::Tup(ref items) => rewrite_tuple(
                 context,
-                &::utils::ptr_vec_to_ref_vec(&items),
+                &::utils::ptr_vec_to_ref_vec(items),
                 self.span,
                 shape,
             ),
@@ -699,15 +706,13 @@ impl Rewrite for ast::Ty {
                 rewrite_path(context, PathContext::Type, q_self.as_ref(), path, shape)
             }
             ast::TyKind::Array(ref ty, ref repeats) => {
-                let use_spaces = context.config.spaces_within_square_brackets();
+                let use_spaces = context.config.spaces_within_parens_and_brackets();
                 let lbr = if use_spaces { "[ " } else { "[" };
                 let rbr = if use_spaces { " ]" } else { "]" };
                 rewrite_pair(
                     &**ty,
                     &**repeats,
-                    lbr,
-                    "; ",
-                    rbr,
+                    PairParts::new(lbr, "; ", rbr),
                     context,
                     shape,
                     SeparatorPlace::Back,

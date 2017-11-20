@@ -10,6 +10,8 @@
 
 #![feature(rustc_private)]
 
+#[macro_use]
+extern crate derive_new;
 extern crate diff;
 #[macro_use]
 extern crate log;
@@ -42,7 +44,7 @@ use checkstyle::{output_footer, output_header};
 use config::Config;
 use filemap::FileMap;
 use issues::{BadIssueSeeker, Issue};
-use utils::isatty;
+use utils::use_colored_tty;
 use visitor::FmtVisitor;
 
 pub use self::summary::Summary;
@@ -57,6 +59,7 @@ pub mod filemap;
 pub mod file_lines;
 pub mod visitor;
 mod checkstyle;
+mod closures;
 mod items;
 mod missed_spans;
 mod lists;
@@ -307,7 +310,7 @@ where
     // We always skip children for the "Plain" write mode, since there is
     // nothing to distinguish the nested module contents.
     let skip_children = config.skip_children() || config.write_mode() == config::WriteMode::Plain;
-    for (path, module) in modules::list_files(krate, parse_session.codemap()) {
+    for (path, module) in modules::list_files(krate, parse_session.codemap())? {
         if skip_children && path.as_path() != main_file {
             continue;
         }
@@ -319,6 +322,7 @@ where
         let filemap = visitor.codemap.lookup_char_pos(module.inner.lo()).file;
         // Format inner attributes if available.
         if !krate.attrs.is_empty() && path == main_file {
+            visitor.skip_empty_lines(filemap.end_pos);
             if visitor.visit_attrs(&krate.attrs, ast::AttrStyle::Inner) {
                 visitor.push_rewrite(module.inner, None);
             } else {
@@ -326,6 +330,7 @@ where
             }
         } else {
             visitor.last_pos = filemap.start_pos;
+            visitor.skip_empty_lines(filemap.end_pos);
             visitor.format_separate_mod(module, &*filemap);
         };
 
@@ -638,7 +643,8 @@ pub fn run(input: Input, config: &Config) -> Summary {
             if report.has_warnings() {
                 match term::stderr() {
                     Some(ref t)
-                        if isatty() && t.supports_color() && t.supports_attr(term::Attr::Bold) =>
+                        if use_colored_tty(config.color()) && t.supports_color()
+                            && t.supports_attr(term::Attr::Bold) =>
                     {
                         match report.print_warnings_fancy(term::stderr().unwrap()) {
                             Ok(..) => (),

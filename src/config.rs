@@ -40,11 +40,6 @@ macro_rules! configuration_option_enum{
     }
 }
 
-configuration_option_enum! { Style:
-    Rfc, // Follow the style RFCs style.
-    Legacy, // Follow the traditional Rustfmt style.
-}
-
 configuration_option_enum! { NewlineStyle:
     Windows, // \r\n
     Unix, // \n
@@ -152,6 +147,15 @@ configuration_option_enum! { WriteMode:
     Checkstyle,
     // Output the changed lines
     Modified,
+}
+
+configuration_option_enum! { Color:
+    // Always use color, whether it is a piped or terminal output
+    Always,
+    // Never use color
+    Never,
+    // Automatically use color, if supported by terminal
+    Auto,
 }
 
 /// Trait for types that can be used in `Config`.
@@ -480,7 +484,7 @@ macro_rules! create_config {
                     $(
                         println!("{}{}", space_str, $dstring);
                     )+
-                    println!("");
+                    println!();
                 )+
             }
         }
@@ -502,7 +506,7 @@ macro_rules! create_config {
 ///
 /// Return the path if a config file exists, empty if no file exists, and Error for IO errors
 pub fn get_toml_path(dir: &Path) -> Result<Option<PathBuf>, Error> {
-    const CONFIG_FILE_NAMES: [&'static str; 2] = [".rustfmt.toml", "rustfmt.toml"];
+    const CONFIG_FILE_NAMES: [&str; 2] = [".rustfmt.toml", "rustfmt.toml"];
     for config_file_name in &CONFIG_FILE_NAMES {
         let config_file = dir.join(config_file_name);
         match fs::metadata(&config_file) {
@@ -523,6 +527,7 @@ pub fn get_toml_path(dir: &Path) -> Result<Option<PathBuf>, Error> {
 
 
 create_config! {
+    indent_style: IndentStyle, IndentStyle::Block, false, "How do we indent expressions or items.";
     unstable_features: bool, false, true,
             "Enables unstable features. Only available on nightly channel";
     verbose: bool, false, false, "Use verbose output";
@@ -544,10 +549,7 @@ create_config! {
         "Maximum width in the body of a struct variant before falling back to vertical formatting";
     force_explicit_abi: bool, true, false, "Always print the abi for extern items";
     newline_style: NewlineStyle, NewlineStyle::Unix, false, "Unix or Windows line endings";
-    fn_brace_style: BraceStyle, BraceStyle::SameLineWhere, false, "Brace style for functions";
-    item_brace_style: BraceStyle, BraceStyle::SameLineWhere, false,
-        "Brace style for structs and enums";
-    control_style: Style, Style::Rfc, false, "Indent style for control flow statements";
+    brace_style: BraceStyle, BraceStyle::SameLineWhere, false, "Brace style for items";
     control_brace_style: ControlBraceStyle, ControlBraceStyle::AlwaysSameLine, false,
         "Brace style for control flow constructs";
     impl_empty_single_line: bool, true, false, "Put empty-body implementations on a single line";
@@ -561,37 +563,28 @@ create_config! {
         "Location of return type in function declaration";
     fn_args_paren_newline: bool, false, false, "If function argument parenthesis goes on a newline";
     fn_args_density: Density, Density::Tall, false, "Argument density in functions";
-    fn_args_layout: IndentStyle, IndentStyle::Block, false,
-        "Layout of function arguments and tuple structs";
-    array_layout: IndentStyle, IndentStyle::Block, false, "Indent on arrays";
     array_width: usize, 60, false,
         "Maximum width of an array literal before falling back to vertical formatting";
     array_horizontal_layout_threshold: usize, 0, false,
         "How many elements array must have before rustfmt uses horizontal layout.";
     type_punctuation_density: TypeDensity, TypeDensity::Wide, false,
         "Determines if '+' or '=' are wrapped in spaces in the punctuation of types";
-    where_style: Style, Style::Rfc, false, "Overall strategy for where clauses";
     // TODO:
     // 1. Should we at least try to put the where clause on the same line as the rest of the
     // function decl?
     // 2. Currently options `Tall` and `Vertical` produce the same output.
     where_density: Density, Density::Vertical, false, "Density of a where clause";
+    where_single_line: bool, false, false, "To force single line where layout";
     where_layout: ListTactic, ListTactic::Vertical, false, "Element layout inside a where clause";
-    where_pred_indent: IndentStyle, IndentStyle::Visual, false,
-        "Indentation style of a where predicate";
-    generics_indent: IndentStyle, IndentStyle::Block, false, "Indentation of generics";
-    struct_lit_style: IndentStyle, IndentStyle::Block, false, "Style of struct definition";
     struct_lit_multiline_style: MultilineStyle, MultilineStyle::PreferSingle, false,
         "Multiline style on literal structs";
-    fn_call_style: IndentStyle, IndentStyle::Block, false, "Indentation for function calls, etc.";
     report_todo: ReportTactic, ReportTactic::Never, false,
         "Report all, none or unnumbered occurrences of TODO in source file comments";
     report_fixme: ReportTactic, ReportTactic::Never, false,
         "Report all, none or unnumbered occurrences of FIXME in source file comments";
-    chain_indent: IndentStyle, IndentStyle::Block, false, "Indentation of chain";
-    chain_one_line_max: usize, 60, false, "Maximum length of a chain to fit on a single line";
+    chain_width: usize, 60, false, "Maximum length of a chain to fit on a single line";
     chain_split_single_child: bool, false, false, "Split a chain with a single child if its length \
-                                            exceeds `chain_one_line_max`";
+                                            exceeds `chain_width`";
     imports_indent: IndentStyle, IndentStyle::Visual, false, "Indent of imports";
     imports_layout: ListTactic, ListTactic::Mixed, false, "Item layout inside a import block";
     reorder_extern_crates: bool, true, false, "Reorder extern crate statements alphabetically";
@@ -622,31 +615,17 @@ create_config! {
                                     indentation level as the match keyword";
     match_pattern_separator_break_point: SeparatorPlace, SeparatorPlace::Back, false,
         "Put a match sub-patterns' separator in front or back.";
-    closure_block_indent_threshold: isize, 7, false,
-        "How many lines a closure must have before it is block indented. \
-        -1 means never use block indent.";
-    space_before_type_annotation: bool, false, false,
-        "Leave a space before the colon in a type annotation";
-    space_after_type_annotation_colon: bool, true, false,
-        "Leave a space after the colon in a type annotation";
-    space_before_struct_lit_field_colon: bool, false, false,
-        "Leave a space before the colon in a struct literal field";
-    space_after_struct_lit_field_colon: bool, true, false,
-        "Leave a space after the colon in a struct literal field";
-    space_before_bound: bool, false, false,
-        "Leave a space before the colon in a trait or lifetime bound";
-    space_after_bound_colon: bool, true, false,
-        "Leave a space after the colon in a trait or lifetime bound";
+    space_before_colon: bool, false, false, "Leave a space before the colon";
+    space_after_colon: bool, true, false, "Leave a space after the colon";
     spaces_around_ranges: bool, false, false, "Put spaces around the  .. and ... range operators";
-    spaces_within_angle_brackets: bool, false, false,
-        "Put spaces within non-empty generic arguments";
-    spaces_within_square_brackets: bool, false, false,
-        "Put spaces within non-empty square brackets";
-    spaces_within_parens: bool, false, false, "Put spaces within non-empty parentheses";
+    spaces_within_parens_and_brackets: bool, false, false,
+        "Put spaces within non-empty parentheses or brackets";
     use_try_shorthand: bool, false, false, "Replace uses of the try! macro by the ? shorthand";
     write_mode: WriteMode, WriteMode::Overwrite, false,
         "What Write Mode to use when none is supplied: \
          Replace, Overwrite, Display, Plain, Diff, Coverage, Modified";
+    color: Color, Color::Auto, false,
+        "What Color option to use when none is supplied: Always, Never, Auto";
     condense_wildcard_suffixes: bool, false, false, "Replace strings of _ wildcards by a single .. \
                                               in tuple patterns";
     combine_control_expr: bool, true, false, "Combine control expressions with function calls.";
