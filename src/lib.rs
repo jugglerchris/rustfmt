@@ -562,7 +562,7 @@ pub fn format_input<T: Write>(
 
 /// A single span of changed lines, with 0 or more removed lines
 /// and a vector of 0 or more inserted lines.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ModifiedChunk {
     /// The first affected line before formatting.
     pub line_number: u32,
@@ -573,6 +573,7 @@ pub struct ModifiedChunk {
 }
 
 /// Set of changed sections of a file.
+#[derive(Debug, PartialEq, Eq)]
 pub struct ModifiedLines {
     /// The set of changed chunks.
     pub chunks: Vec<ModifiedChunk>,

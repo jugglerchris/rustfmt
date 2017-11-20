@@ -73,9 +73,27 @@ fn checkstyle_test() {
 
 #[test]
 fn modified_test() {
+    // Test "modified" output
     let filename = "tests/writemode/source/modified.rs";
-    let expected_filename = "tests/writemode/target/modified.txt";
-    assert_output(filename, expected_filename);
+    let (summary, filemap, report, modified) =
+        get_modified_lines(Input::File(filename.into()), &Config::default()).unwrap();
+    assert_eq!(
+        modified,
+        ModifiedLines {
+            chunks: vec![
+                ModifiedChunk {
+                    line_number: 4,
+                    lines_removed: 4,
+                    lines: vec!["fn blah() {}".into()],
+                },
+                ModifiedChunk {
+                    line_number: 10,
+                    lines_removed: 5,
+                    lines: vec!["#[cfg(a, b)]".into(), "fn main() {}".into()],
+                },
+            ],
+        }
+    );
 }
 
 // Helper function for comparing the results of rustfmt
