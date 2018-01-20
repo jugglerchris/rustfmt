@@ -4,7 +4,8 @@
 struct Foo {
     bar: u64,
 
-    #[cfg(test)] qux: u64,
+    #[cfg(test)]
+    qux: u64,
 }
 
 fn do_something() -> Foo {
@@ -23,7 +24,8 @@ fn main() {
 // #1462
 struct Foo {
     foo: usize,
-    #[cfg(feature = "include-bar")] bar: usize,
+    #[cfg(feature = "include-bar")]
+    bar: usize,
 }
 
 fn new_foo() -> Foo {
@@ -46,3 +48,9 @@ struct Fields(
     #[cfg_attr(feature = "serde_derive", serde(state_with = "::base::serialization::shared"))]
     Arc<Vec<InternedStr>>,
 );
+
+// #2309
+pub struct A {
+    #[doc = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"]
+    pub foos: Vec<bool>,
+}

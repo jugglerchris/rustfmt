@@ -1,6 +1,5 @@
 // rustfmt-normalize_comments: true
-// rustfmt-single_line_if_else_max_width: 0
-// rustfmt-chain_width: 100
+// rustfmt-use_small_heuristics: false
 // Test chain formatting.
 
 fn main() {
@@ -55,6 +54,14 @@ fn main() {
     let suuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuum =
         xxxxxxx.map(|x| x + 5).map(|x| x / 2).fold(0, |acc, x| acc + x);
 
+    body.fold(Body::new(), |mut body, chunk| {
+        body.extend(chunk);
+        Ok(body)
+    }).and_then(move |body| {
+        let req = Request::from_parts(parts, body);
+        f(req).map_err(|_| io::Error::new(io::ErrorKind::Other, ""))
+    });
+
     aaaaaaaaaaaaaaaa
         .map(|x| {
             x += 1;
@@ -102,11 +109,12 @@ fn floaters() {
     }.bar()
         .baz();
 
-    Foo { x: val }
-        .baz(|| {
-            force();
-            multiline();
-        })
+    Foo {
+        x: val,
+    }.baz(|| {
+        force();
+        multiline();
+    })
         .quux();
 
     Foo {
@@ -152,9 +160,7 @@ fn try_shorthand() {
         .0
         .x;
 
-    parameterized(f, substs, def_id, Ns::Value, &[], |tcx| {
-        tcx.lookup_item_type(def_id).generics
-    })?;
+    parameterized(f, substs, def_id, Ns::Value, &[], |tcx| tcx.lookup_item_type(def_id).generics)?;
     fooooooooooooooooooooooooooo()?
         .bar()?
         .baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaz()?;
@@ -213,5 +219,30 @@ fn issue2126() {
                 }
             }
         }
+    }
+}
+
+// #2200
+impl Foo {
+    pub fn from_ast(diagnostic: &::errors::Handler, attrs: &[ast::Attribute]) -> Attributes {
+        let other_attrs = attrs
+            .iter()
+            .filter_map(|attr| {
+                attr.with_desugared_doc(|attr| {
+                    if attr.check_name("doc") {
+                        if let Some(mi) = attr.meta() {
+                            if let Some(value) = mi.value_str() {
+                                doc_strings.push(DocFragment::Include(
+                                    line,
+                                    attr.span,
+                                    filename,
+                                    contents,
+                                ));
+                            }
+                        }
+                    }
+                })
+            })
+            .collect();
     }
 }

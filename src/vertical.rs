@@ -15,7 +15,6 @@ use std::cmp;
 use syntax::ast;
 use syntax::codemap::{BytePos, Span};
 
-use spanned::Spanned;
 use codemap::SpanUtils;
 use comment::{combine_strs_with_missing_comments, contains_comment};
 use expr::rewrite_field;
@@ -24,6 +23,7 @@ use lists::{definitive_tactic, itemize_list, write_list, ListFormatting, ListTac
             SeparatorPlace};
 use rewrite::{Rewrite, RewriteContext};
 use shape::{Indent, Shape};
+use spanned::Spanned;
 use utils::{contains_skip, is_attributes_extendable, mk_sp};
 
 pub trait AlignedItem {
@@ -54,8 +54,7 @@ impl AlignedItem for ast::StructField {
         } else {
             mk_sp(self.attrs.last().unwrap().span.hi(), self.span.lo())
         };
-        let attrs_extendable = context.config.attributes_on_same_line_as_field()
-            && is_attributes_extendable(&attrs_str);
+        let attrs_extendable = self.ident.is_none() && is_attributes_extendable(&attrs_str);
         rewrite_struct_field_prefix(context, self).and_then(|field_str| {
             combine_strs_with_missing_comments(
                 context,
@@ -231,6 +230,7 @@ fn rewrite_aligned_items_inner<T: AlignedItem>(
         context.codemap,
         fields.iter(),
         "}",
+        ",",
         |field| field.get_span().lo(),
         |field| field.get_span().hi(),
         |field| field.rewrite_aligned_item(context, item_shape, field_prefix_max_width),

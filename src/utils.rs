@@ -178,7 +178,7 @@ pub fn last_line_extendable(s: &str) -> bool {
     }
     for c in s.chars().rev() {
         match c {
-            ')' | ']' | '}' | '?' => continue,
+            ')' | ']' | '}' | '?' | '>' => continue,
             '\n' => break,
             _ if c.is_whitespace() => continue,
             _ => return false,
@@ -213,19 +213,6 @@ pub fn contains_skip(attrs: &[Attribute]) -> bool {
         .any(|a| a.meta().map_or(false, |a| is_skip(&a)))
 }
 
-// Find the end of a TyParam
-#[inline]
-pub fn end_typaram(typaram: &ast::TyParam) -> BytePos {
-    typaram
-        .bounds
-        .last()
-        .map_or(typaram.span, |bound| match *bound {
-            ast::RegionTyParamBound(ref lt) => lt.span,
-            ast::TraitTyParamBound(ref prt, _) => prt.span,
-        })
-        .hi()
-}
-
 #[inline]
 pub fn semicolon_for_expr(context: &RewriteContext, expr: &ast::Expr) -> bool {
     match expr.node {
@@ -240,10 +227,10 @@ pub fn semicolon_for_expr(context: &RewriteContext, expr: &ast::Expr) -> bool {
 pub fn semicolon_for_stmt(context: &RewriteContext, stmt: &ast::Stmt) -> bool {
     match stmt.node {
         ast::StmtKind::Semi(ref expr) => match expr.node {
-            ast::ExprKind::While(..) |
-            ast::ExprKind::WhileLet(..) |
-            ast::ExprKind::Loop(..) |
-            ast::ExprKind::ForLoop(..) => false,
+            ast::ExprKind::While(..)
+            | ast::ExprKind::WhileLet(..)
+            | ast::ExprKind::Loop(..)
+            | ast::ExprKind::ForLoop(..) => false,
             ast::ExprKind::Break(..) | ast::ExprKind::Continue(..) | ast::ExprKind::Ret(..) => {
                 context.config.trailing_semicolon()
             }
@@ -263,14 +250,8 @@ pub fn stmt_expr(stmt: &ast::Stmt) -> Option<&ast::Expr> {
 }
 
 #[inline]
-pub fn trim_newlines(input: &str) -> &str {
-    match input.find(|c| c != '\n' && c != '\r') {
-        Some(start) => {
-            let end = input.rfind(|c| c != '\n' && c != '\r').unwrap_or(0) + 1;
-            &input[start..end]
-        }
-        None => "",
-    }
+pub fn count_newlines(input: &str) -> usize {
+    input.chars().filter(|&c| c == '\n').count()
 }
 
 // Macro for deriving implementations of Serialize/Deserialize for enums
@@ -450,18 +431,18 @@ pub fn paren_overhead(context: &RewriteContext) -> usize {
 
 pub fn left_most_sub_expr(e: &ast::Expr) -> &ast::Expr {
     match e.node {
-        ast::ExprKind::InPlace(ref e, _) |
-        ast::ExprKind::Call(ref e, _) |
-        ast::ExprKind::Binary(_, ref e, _) |
-        ast::ExprKind::Cast(ref e, _) |
-        ast::ExprKind::Type(ref e, _) |
-        ast::ExprKind::Assign(ref e, _) |
-        ast::ExprKind::AssignOp(_, ref e, _) |
-        ast::ExprKind::Field(ref e, _) |
-        ast::ExprKind::TupField(ref e, _) |
-        ast::ExprKind::Index(ref e, _) |
-        ast::ExprKind::Range(Some(ref e), _, _) |
-        ast::ExprKind::Try(ref e) => left_most_sub_expr(e),
+        ast::ExprKind::InPlace(ref e, _)
+        | ast::ExprKind::Call(ref e, _)
+        | ast::ExprKind::Binary(_, ref e, _)
+        | ast::ExprKind::Cast(ref e, _)
+        | ast::ExprKind::Type(ref e, _)
+        | ast::ExprKind::Assign(ref e, _)
+        | ast::ExprKind::AssignOp(_, ref e, _)
+        | ast::ExprKind::Field(ref e, _)
+        | ast::ExprKind::TupField(ref e, _)
+        | ast::ExprKind::Index(ref e, _)
+        | ast::ExprKind::Range(Some(ref e), _, _)
+        | ast::ExprKind::Try(ref e) => left_most_sub_expr(e),
         _ => e,
     }
 }

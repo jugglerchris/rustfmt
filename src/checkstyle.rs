@@ -9,6 +9,7 @@
 // except according to those terms.
 
 use std::io::{self, Write};
+use std::path::Path;
 
 use config::WriteMode;
 use rustfmt_diff::{DiffLine, Mismatch};
@@ -33,7 +34,7 @@ where
 {
     if mode == WriteMode::Checkstyle {
         let mut xml_tail = String::new();
-        xml_tail.push_str("</checkstyle>");
+        xml_tail.push_str("</checkstyle>\n");
         write!(out, "{}", xml_tail)?;
     }
     Ok(())
@@ -41,13 +42,13 @@ where
 
 pub fn output_checkstyle_file<T>(
     mut writer: T,
-    filename: &str,
+    filename: &Path,
     diff: Vec<Mismatch>,
 ) -> Result<(), io::Error>
 where
     T: Write,
 {
-    write!(writer, "<file name=\"{}\">", filename)?;
+    write!(writer, "<file name=\"{}\">", filename.display())?;
     for mismatch in diff {
         for line in mismatch.lines {
             // Do nothing with `DiffLine::Context` and `DiffLine::Resulting`.
@@ -57,8 +58,7 @@ where
                     writer,
                     "<error line=\"{}\" severity=\"warning\" message=\"Should be `{}`\" \
                      />",
-                    mismatch.line_number,
-                    message
+                    mismatch.line_number, message
                 )?;
             }
         }

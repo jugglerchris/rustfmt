@@ -1,5 +1,4 @@
 // rustfmt-normalize_comments: true
-// rustfmt-single_line_if_else_max_width: 0
 // rustfmt-wrap_comments: true
 // rustfmt-hard_tabs: true
 // rustfmt-error_on_line_overflow: false
@@ -72,4 +71,15 @@ fn generic<T>(arg: T) -> &SomeType
             false => (),
         }
     });
+}
+
+// #2296
+impl Foo {
+	// a comment
+	// on multiple lines
+	fn foo() {
+		// another comment
+		// on multiple lines
+		let x = true;
+	}
 }

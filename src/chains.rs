@@ -8,62 +8,62 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-/// Formatting of chained expressions, i.e. expressions which are chained by
-/// dots: struct and enum field access, method calls, and try shorthand (?).
-///
-/// Instead of walking these subexpressions one-by-one, as is our usual strategy
-/// for expression formatting, we collect maximal sequences of these expressions
-/// and handle them simultaneously.
-///
-/// Whenever possible, the entire chain is put on a single line. If that fails,
-/// we put each subexpression on a separate, much like the (default) function
-/// argument function argument strategy.
-///
-/// Depends on config options: `chain_indent` is the indent to use for
-/// blocks in the parent/root/base of the chain (and the rest of the chain's
-/// alignment).
-/// E.g., `let foo = { aaaa; bbb; ccc }.bar.baz();`, we would layout for the
-/// following values of `chain_indent`:
-/// Block:
-/// ```
-/// let foo = {
-///     aaaa;
-///     bbb;
-///     ccc
-/// }.bar
-///     .baz();
-/// ```
-/// Visual:
-/// ```
-/// let foo = {
-///               aaaa;
-///               bbb;
-///               ccc
-///           }
-///           .bar
-///           .baz();
-/// ```
-///
-/// If the first item in the chain is a block expression, we align the dots with
-/// the braces.
-/// Block:
-/// ```
-/// let a = foo.bar
-///     .baz()
-///     .qux
-/// ```
-/// Visual:
-/// ```
-/// let a = foo.bar
-///            .baz()
-///            .qux
-/// ```
+//! Formatting of chained expressions, i.e. expressions which are chained by
+//! dots: struct and enum field access, method calls, and try shorthand (?).
+//!
+//! Instead of walking these subexpressions one-by-one, as is our usual strategy
+//! for expression formatting, we collect maximal sequences of these expressions
+//! and handle them simultaneously.
+//!
+//! Whenever possible, the entire chain is put on a single line. If that fails,
+//! we put each subexpression on a separate, much like the (default) function
+//! argument function argument strategy.
+//!
+//! Depends on config options: `chain_indent` is the indent to use for
+//! blocks in the parent/root/base of the chain (and the rest of the chain's
+//! alignment).
+//! E.g., `let foo = { aaaa; bbb; ccc }.bar.baz();`, we would layout for the
+//! following values of `chain_indent`:
+//! Block:
+//! ```
+//! let foo = {
+//!     aaaa;
+//!     bbb;
+//!     ccc
+//! }.bar
+//!     .baz();
+//! ```
+//! Visual:
+//! ```
+//! let foo = {
+//!               aaaa;
+//!               bbb;
+//!               ccc
+//!           }
+//!           .bar
+//!           .baz();
+//! ```
+//!
+//! If the first item in the chain is a block expression, we align the dots with
+//! the braces.
+//! Block:
+//! ```
+//! let a = foo.bar
+//!     .baz()
+//!     .qux
+//! ```
+//! Visual:
+//! ```
+//! let a = foo.bar
+//!            .baz()
+//!            .qux
+//! ```
 
-use shape::Shape;
 use config::IndentStyle;
 use expr::rewrite_call;
 use macros::convert_try_mac;
 use rewrite::{Rewrite, RewriteContext};
+use shape::Shape;
 use utils::{first_line_width, last_line_extendable, last_line_width, mk_sp,
             trimmed_last_line_width, wrap_str};
 
@@ -129,15 +129,14 @@ pub fn rewrite_chain(expr: &ast::Expr, context: &RewriteContext, shape: Shape) -
         let offset = trimmed_last_line_width(&parent_rewrite) + prefix_try_num;
         match context.config.indent_style() {
             IndentStyle::Visual => parent_shape.offset_left(overhead)?,
-            IndentStyle::Block => parent_shape.block().offset_left(offset)?,
+            IndentStyle::Block => parent_shape.offset_left(offset)?,
         }
     } else {
         other_child_shape
     };
     debug!(
         "child_shapes {:?} {:?}",
-        first_child_shape,
-        other_child_shape
+        first_child_shape, other_child_shape
     );
 
     let child_shape_iter = Some(first_child_shape)
@@ -147,37 +146,33 @@ pub fn rewrite_chain(expr: &ast::Expr, context: &RewriteContext, shape: Shape) -
     let last_subexpr = &subexpr_list[suffix_try_num];
     let subexpr_list = &subexpr_list[suffix_try_num..subexpr_num - prefix_try_num];
     let iter = subexpr_list.iter().skip(1).rev().zip(child_shape_iter);
-    let mut rewrites = iter.map(|(e, shape)| {
-        rewrite_chain_subexpr(e, total_span, context, shape)
-    }).collect::<Option<Vec<_>>>()?;
+    let mut rewrites = iter.map(|(e, shape)| rewrite_chain_subexpr(e, total_span, context, shape))
+        .collect::<Option<Vec<_>>>()?;
 
     // Total of all items excluding the last.
-    let extend_last_subexpr = last_line_extendable(&parent_rewrite) && rewrites.is_empty();
+    let extend_last_subexpr = if is_small_parent {
+        rewrites.len() == 1 && last_line_extendable(&rewrites[0])
+    } else {
+        rewrites.is_empty() && last_line_extendable(&parent_rewrite)
+    };
     let almost_total = if extend_last_subexpr {
         last_line_width(&parent_rewrite)
     } else {
         rewrites.iter().fold(0, |a, b| a + b.len()) + parent_rewrite.len()
     } + suffix_try_num;
-    let one_line_budget = if rewrites.is_empty() && !context.config.chain_split_single_child() {
+    let one_line_budget = if rewrites.is_empty() {
         shape.width
     } else {
-        min(shape.width, context.config.chain_width())
+        min(shape.width, context.config.width_heuristics().chain_width)
     };
     let all_in_one_line = !parent_rewrite_contains_newline
         && rewrites.iter().all(|s| !s.contains('\n'))
         && almost_total < one_line_budget;
-    let last_shape = {
-        let last_shape = if rewrites.len() == 0 {
-            first_child_shape
-        } else {
-            other_child_shape
-        };
-        match context.config.indent_style() {
-            IndentStyle::Visual => last_shape.sub_width(shape.rhs_overhead(context.config))?,
-            IndentStyle::Block => last_shape,
-        }
-    };
-    let last_shape = last_shape.sub_width(suffix_try_num)?;
+    let last_shape = if rewrites.is_empty() {
+        first_child_shape
+    } else {
+        other_child_shape
+    }.sub_width(shape.rhs_overhead(context.config) + suffix_try_num)?;
 
     // Rewrite the last child. The last child of a chain requires special treatment. We need to
     // know whether 'overflowing' the last child make a better formatting:
@@ -350,19 +345,19 @@ fn is_block_expr(context: &RewriteContext, expr: &ast::Expr, repr: &str) -> bool
         ast::ExprKind::Mac(..) | ast::ExprKind::Call(..) => {
             context.use_block_indent() && repr.contains('\n')
         }
-        ast::ExprKind::Struct(..) |
-        ast::ExprKind::While(..) |
-        ast::ExprKind::WhileLet(..) |
-        ast::ExprKind::If(..) |
-        ast::ExprKind::IfLet(..) |
-        ast::ExprKind::Block(..) |
-        ast::ExprKind::Loop(..) |
-        ast::ExprKind::ForLoop(..) |
-        ast::ExprKind::Match(..) => repr.contains('\n'),
-        ast::ExprKind::Paren(ref expr) |
-        ast::ExprKind::Binary(_, _, ref expr) |
-        ast::ExprKind::Index(_, ref expr) |
-        ast::ExprKind::Unary(_, ref expr) => is_block_expr(context, expr, repr),
+        ast::ExprKind::Struct(..)
+        | ast::ExprKind::While(..)
+        | ast::ExprKind::WhileLet(..)
+        | ast::ExprKind::If(..)
+        | ast::ExprKind::IfLet(..)
+        | ast::ExprKind::Block(..)
+        | ast::ExprKind::Loop(..)
+        | ast::ExprKind::ForLoop(..)
+        | ast::ExprKind::Match(..) => repr.contains('\n'),
+        ast::ExprKind::Paren(ref expr)
+        | ast::ExprKind::Binary(_, _, ref expr)
+        | ast::ExprKind::Index(_, ref expr)
+        | ast::ExprKind::Unary(_, ref expr) => is_block_expr(context, expr, repr),
         _ => false,
     }
 }
@@ -396,9 +391,9 @@ fn pop_expr_chain(expr: &ast::Expr, context: &RewriteContext) -> Option<ast::Exp
         ast::ExprKind::MethodCall(_, ref expressions) => {
             Some(convert_try(&expressions[0], context))
         }
-        ast::ExprKind::TupField(ref subexpr, _) |
-        ast::ExprKind::Field(ref subexpr, _) |
-        ast::ExprKind::Try(ref subexpr) => Some(convert_try(subexpr, context)),
+        ast::ExprKind::TupField(ref subexpr, _)
+        | ast::ExprKind::Field(ref subexpr, _)
+        | ast::ExprKind::Try(ref subexpr) => Some(convert_try(subexpr, context)),
         _ => None,
     }
 }
@@ -424,10 +419,12 @@ fn rewrite_chain_subexpr(
     context: &RewriteContext,
     shape: Shape,
 ) -> Option<String> {
-    let rewrite_element = |expr_str: String| if expr_str.len() <= shape.width {
-        Some(expr_str)
-    } else {
-        None
+    let rewrite_element = |expr_str: String| {
+        if expr_str.len() <= shape.width {
+            Some(expr_str)
+        } else {
+            None
+        }
     };
 
     match expr.node {

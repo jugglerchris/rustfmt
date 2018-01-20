@@ -13,7 +13,7 @@
 
 use std::rc::Rc;
 
-use syntax::codemap::{BytePos, CodeMap, FileMap, Span};
+use syntax::codemap::{BytePos, CodeMap, FileMap, FileName, Span};
 
 use comment::FindUncommented;
 
@@ -25,8 +25,8 @@ pub struct LineRange {
 }
 
 impl LineRange {
-    pub fn file_name(&self) -> &str {
-        self.file.as_ref().name.as_str()
+    pub fn file_name(&self) -> &FileName {
+        &self.file.name
     }
 }
 
@@ -86,11 +86,9 @@ impl LineRangeUtils for CodeMap {
         let hi = self.lookup_char_pos(span.hi());
 
         assert_eq!(
-            lo.file.name,
-            hi.file.name,
+            lo.file.name, hi.file.name,
             "span crossed file boundary: lo: {:?}, hi: {:?}",
-            lo,
-            hi
+            lo, hi
         );
 
         LineRange {

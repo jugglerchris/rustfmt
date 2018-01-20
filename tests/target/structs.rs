@@ -8,7 +8,8 @@ pub struct Foo {
     f :   SomeType, // Comment beside a field
     f: SomeType, // Comment beside a field
     // Comment on a field
-    #[AnAttribute] g: SomeOtherType,
+    #[AnAttribute]
+    g: SomeOtherType,
     /// A doc comment on a field
     h: AThirdType,
     pub i: TypeForPublicField,
@@ -271,7 +272,7 @@ struct Foo {
     aaaaaaa: u32, /* multi
                    * line
                    * comment
-                   * */
+                   */
     b: u32, // hi
 
     do_not_push_this_comment1: u32, // comment1

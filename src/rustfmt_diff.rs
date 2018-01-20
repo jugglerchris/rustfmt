@@ -43,6 +43,43 @@ impl Mismatch {
     }
 }
 
+// This struct handles writing output to stdout and abstracts away the logic
+// of printing in color, if it's possible in the executing environment.
+pub struct OutputWriter {
+    terminal: Option<Box<term::Terminal<Output = io::Stdout>>>,
+}
+
+impl OutputWriter {
+    // Create a new OutputWriter instance based on the caller's preference
+    // for colorized output and the capabilities of the terminal.
+    pub fn new(color: Color) -> Self {
+        if let Some(t) = term::stdout() {
+            if use_colored_tty(color) && t.supports_color() {
+                return OutputWriter { terminal: Some(t) };
+            }
+        }
+        OutputWriter { terminal: None }
+    }
+
+    // Write output in the optionally specified color. The output is written
+    // in the specified color if this OutputWriter instance contains a
+    // Terminal in its `terminal` field.
+    pub fn writeln(&mut self, msg: &str, color: Option<term::color::Color>) {
+        match &mut self.terminal {
+            Some(ref mut t) => {
+                if let Some(color) = color {
+                    t.fg(color).unwrap();
+                }
+                writeln!(t, "{}", msg).unwrap();
+                if color.is_some() {
+                    t.reset().unwrap();
+                }
+            }
+            None => println!("{}", msg),
+        }
+    }
+}
+
 // Produces a diff between the expected output and actual output of rustfmt.
 pub fn make_diff(expected: &str, actual: &str, context_size: usize) -> Vec<Mismatch> {
     let mut line_number = 1;
@@ -116,63 +153,20 @@ pub fn print_diff<F>(diff: Vec<Mismatch>, get_section_title: F, color: Color)
 where
     F: Fn(u32) -> String,
 {
-    match term::stdout() {
-        Some(ref t) if use_colored_tty(color) && t.supports_color() => {
-            print_diff_fancy(diff, get_section_title, term::stdout().unwrap())
-        }
-        _ => print_diff_basic(diff, get_section_title),
-    }
-}
+    let mut writer = OutputWriter::new(color);
 
-fn print_diff_fancy<F>(
-    diff: Vec<Mismatch>,
-    get_section_title: F,
-    mut t: Box<term::Terminal<Output = io::Stdout>>,
-) where
-    F: Fn(u32) -> String,
-{
     for mismatch in diff {
         let title = get_section_title(mismatch.line_number);
-        writeln!(t, "{}", title).unwrap();
+        writer.writeln(&format!("{}", title), None);
 
         for line in mismatch.lines {
             match line {
-                DiffLine::Context(ref str) => {
-                    t.reset().unwrap();
-                    writeln!(t, " {}⏎", str).unwrap();
-                }
+                DiffLine::Context(ref str) => writer.writeln(&format!(" {}⏎", str), None),
                 DiffLine::Expected(ref str) => {
-                    t.fg(term::color::GREEN).unwrap();
-                    writeln!(t, "+{}⏎", str).unwrap();
+                    writer.writeln(&format!("+{}⏎", str), Some(term::color::GREEN))
                 }
                 DiffLine::Resulting(ref str) => {
-                    t.fg(term::color::RED).unwrap();
-                    writeln!(t, "-{}⏎", str).unwrap();
-                }
-            }
-        }
-        t.reset().unwrap();
-    }
-}
-
-pub fn print_diff_basic<F>(diff: Vec<Mismatch>, get_section_title: F)
-where
-    F: Fn(u32) -> String,
-{
-    for mismatch in diff {
-        let title = get_section_title(mismatch.line_number);
-        println!("{}", title);
-
-        for line in mismatch.lines {
-            match line {
-                DiffLine::Context(ref str) => {
-                    println!(" {}⏎", str);
-                }
-                DiffLine::Expected(ref str) => {
-                    println!("+{}⏎", str);
-                }
-                DiffLine::Resulting(ref str) => {
-                    println!("-{}⏎", str);
+                    writer.writeln(&format!("-{}⏎", str), Some(term::color::RED))
                 }
             }
         }
@@ -235,10 +229,10 @@ mod test {
                     line_number: 2,
                     line_number_orig: 2,
                     lines: vec![
-                        Context("two".into()),
-                        Resulting("three".into()),
-                        Expected("trois".into()),
-                        Context("four".into()),
+                        Context("two".to_owned()),
+                        Resulting("three".to_owned()),
+                        Expected("trois".to_owned()),
+                        Context("four".to_owned()),
                     ],
                 },
             ]
@@ -257,19 +251,19 @@ mod test {
                     line_number: 2,
                     line_number_orig: 2,
                     lines: vec![
-                        Context("two".into()),
-                        Resulting("three".into()),
-                        Expected("trois".into()),
-                        Context("four".into()),
+                        Context("two".to_owned()),
+                        Resulting("three".to_owned()),
+                        Expected("trois".to_owned()),
+                        Context("four".to_owned()),
                     ],
                 },
                 Mismatch {
                     line_number: 5,
                     line_number_orig: 5,
                     lines: vec![
-                        Resulting("five".into()),
-                        Expected("cinq".into()),
-                        Context("six".into()),
+                        Resulting("five".to_owned()),
+                        Expected("cinq".to_owned()),
+                        Context("six".to_owned()),
                     ],
                 },
             ]
@@ -287,7 +281,23 @@ mod test {
                 Mismatch {
                     line_number: 3,
                     line_number_orig: 3,
-                    lines: vec![Resulting("three".into()), Expected("trois".into())],
+                    lines: vec![Resulting("three".to_owned()), Expected("trois".to_owned())],
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn diff_trailing_newline() {
+        let src = "one\ntwo\nthree\nfour\nfive";
+        let dest = "one\ntwo\nthree\nfour\nfive\n";
+        let diff = make_diff(src, dest, 1);
+        assert_eq!(
+            diff,
+            vec![
+                Mismatch {
+                    line_number: 5,
+                    lines: vec![Context("five".to_owned()), Expected("".to_owned())],
                 },
             ]
         );

@@ -42,7 +42,8 @@ enum StructLikeVariants {
     StructLike {
         x: i32, // Test comment
         // Pre-comment
-        #[Attr50] y: SomeType, // Aanother Comment
+        #[Attr50]
+        y: SomeType, // Aanother Comment
     },
     SL {
         a: A,
@@ -58,7 +59,7 @@ enum X {
 }
 
 pub enum EnumWithAttributes {
-    // This is a pre comment
+    //This is a pre comment
     // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     TupleVar(usize, usize, usize), /* AAAA AAAAAAAAAAAAAAAAAAAAA AAAAAAAAAAAAAAAAAAAAAAAA
                                     * AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA */
@@ -94,7 +95,6 @@ where
     Left { list: I, root: T },  // Post-comment
     Right { list: I, root: T }, // Post Comment
 }
-
 
 enum EmtpyWithComment {
     // Some comment
@@ -214,4 +214,22 @@ enum State {
     },
     TimedOut,
     Disconnected,
+}
+
+// #2190
+#[derive(Debug, Fail)]
+enum AnError {
+    #[fail(display = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    UnexpectedSingleToken { token: syn::Token },
+}
+
+// #2193
+enum WidthOf101 {
+    #[fail(display = ".....................................................")] Io(::std::io::Error),
+    #[fail(display = ".....................................................")]
+    Ioo(::std::io::Error),
+    Xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx(::std::io::Error),
+    Xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx(
+        ::std::io::Error,
+    ),
 }

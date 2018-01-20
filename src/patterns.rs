@@ -12,15 +12,16 @@ use syntax::ast::{self, BindingMode, FieldPat, Pat, PatKind, RangeEnd, RangeSynt
 use syntax::codemap::{self, BytePos, Span};
 use syntax::ptr;
 
-use spanned::Spanned;
 use codemap::SpanUtils;
 use comment::FindUncommented;
 use expr::{can_be_overflowed_expr, rewrite_call_inner, rewrite_pair, rewrite_unary_prefix,
            wrap_struct_field, PairParts};
 use lists::{itemize_list, shape_for_tactic, struct_lit_formatting, struct_lit_shape,
             struct_lit_tactic, write_list, DefinitiveListTactic, SeparatorPlace, SeparatorTactic};
+use macros::{rewrite_macro, MacroPosition};
 use rewrite::{Rewrite, RewriteContext};
 use shape::Shape;
+use spanned::Spanned;
 use types::{rewrite_path, PathContext};
 use utils::{format_mutability, mk_sp};
 
@@ -51,11 +52,13 @@ impl Rewrite for Pat {
 
                 Some(format!("{}{}{}{}", prefix, mut_infix, id_str, sub_pat))
             }
-            PatKind::Wild => if 1 <= shape.width {
-                Some("_".to_owned())
-            } else {
-                None
-            },
+            PatKind::Wild => {
+                if 1 <= shape.width {
+                    Some("_".to_owned())
+                } else {
+                    None
+                }
+            }
             PatKind::Range(ref lhs, ref rhs, ref end_kind) => {
                 let infix = match *end_kind {
                     RangeEnd::Included(RangeSyntax::DotDotDot) => "...",
@@ -119,8 +122,7 @@ impl Rewrite for Pat {
             PatKind::Struct(ref path, ref fields, ellipsis) => {
                 rewrite_struct_pat(path, fields, ellipsis, self.span, context, shape)
             }
-            // FIXME(#819) format pattern macros.
-            PatKind::Mac(..) => Some(context.snippet(self.span)),
+            PatKind::Mac(ref mac) => rewrite_macro(mac, None, context, shape, MacroPosition::Pat),
         }
     }
 }
@@ -151,6 +153,7 @@ fn rewrite_struct_pat(
         context.codemap,
         fields.iter(),
         terminator,
+        ",",
         |f| f.span.lo(),
         |f| f.span.hi(),
         |f| f.node.rewrite(context, v_shape),
@@ -245,10 +248,10 @@ impl<'a> Spanned for TuplePatField<'a> {
 pub fn can_be_overflowed_pat(context: &RewriteContext, pat: &TuplePatField, len: usize) -> bool {
     match *pat {
         TuplePatField::Pat(pat) => match pat.node {
-            ast::PatKind::Path(..) |
-            ast::PatKind::Tuple(..) |
-            ast::PatKind::Struct(..) |
-            ast::PatKind::TupleStruct(..) => context.use_block_indent() && len == 1,
+            ast::PatKind::Path(..)
+            | ast::PatKind::Tuple(..)
+            | ast::PatKind::Struct(..)
+            | ast::PatKind::TupleStruct(..) => context.use_block_indent() && len == 1,
             ast::PatKind::Ref(ref p, _) | ast::PatKind::Box(ref p) => {
                 can_be_overflowed_pat(context, &TuplePatField::Pat(p), len)
             }
@@ -347,6 +350,7 @@ fn count_wildcard_suffix_len(
         context.codemap,
         patterns.iter(),
         ")",
+        ",",
         |item| item.span().lo(),
         |item| item.span().hi(),
         |item| item.rewrite(context, shape),

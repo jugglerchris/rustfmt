@@ -1,5 +1,4 @@
 // rustfmt-normalize_comments: true
-// rustfmt-single_line_if_else_max_width: 0
 // rustfmt-indent_style: Visual
 // Test chain formatting.
 
@@ -142,5 +141,19 @@ fn issue1434() {
             format!("could not read prototype ID at offset {:#010x}",
                     current_offset)
         })?;
+    }
+}
+
+fn issue2264() {
+    {
+        something.function()
+            .map(|| {
+                if let a_very_very_very_very_very_very_very_very_long_variable =
+                    compute_this_variable()
+                {
+                    println!("Hello");
+                }
+            })
+            .collect();
     }
 }

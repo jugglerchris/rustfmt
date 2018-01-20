@@ -151,9 +151,8 @@ when a pull request contains unformatted code. Using `--write-mode=diff` instruc
 rustfmt to exit with an error code if the input is not formatted correctly.
 It will also print any found differences.
 
-(These instructions use the Syntex version of Rustfmt. If you want to use the
-nightly version replace `install rustfmt` with `install rustfmt-nightly`,
-however you must then only run this with the nightly toolchain).
+(These instructions use the nightly version of Rustfmt. If you want to use the
+Syntex version replace `install rustfmt-nightly` with `install rustfmt`).
 
 A minimal Travis setup could look like this:
 
@@ -162,7 +161,7 @@ language: rust
 cache: cargo
 before_script:
 - export PATH="$PATH:$HOME/.cargo/bin"
-- which rustfmt || cargo install rustfmt
+- which rustfmt || cargo install rustfmt-nightly
 script:
 - cargo fmt -- --write-mode=diff
 - cargo build
@@ -190,12 +189,12 @@ directory and it will apply the options in that file. See `rustfmt
 visual style previews, [Configurations.md](Configurations.md).
 
 By default, Rustfmt uses a style which conforms to the [Rust style guide][style
-guide]. For details that have not yet been formalized through the [style RFC
-process][fmt rfcs], we try to adhere to a style similar to that used in the
-[Rust repo][rust].
+guide] that has been formalized through the [style RFC
+process][fmt rfcs].
 
-If there are styling choices you don't agree with, we are usually happy to add
-options covering different styles. File an issue, or even better, submit a PR.
+Configuration options are either stable or unstable. Stable options can always
+be used, while unstable ones are only available on a nightly toolchain, and opt-in.
+See [Configurations.md](Configurations.md) for details.
 
 
 ## Tips
@@ -218,25 +217,25 @@ options covering different styles. File an issue, or even better, submit a PR.
 * If you get an error like `error while loading shared libraries` while starting
   up rustfmt you should try the following:
 
-On Linux:
+  On Linux:
 
-```
-export LD_LIBRARY_PATH=$(rustc --print sysroot)/lib:$LD_LIBRARY_PATH
-```
+  ```
+  export LD_LIBRARY_PATH=$(rustc --print sysroot)/lib:$LD_LIBRARY_PATH
+  ```
 
-On MacOS:
+  On MacOS:
 
-```
-export DYLD_LIBRARY_PATH=$(rustc --print sysroot)/lib:$DYLD_LIBRARY_PATH
-```
+  ```
+  export DYLD_LIBRARY_PATH=$(rustc --print sysroot)/lib:$DYLD_LIBRARY_PATH
+  ```
 
-On Windows (Git Bash/Mingw):
+  On Windows (Git Bash/Mingw):
 
-```
-export PATH=$(rustc --print sysroot)/lib/rustlib/x86_64-pc-windows-gnu/lib/:$PATH
-```
+  ```
+  export PATH=$(rustc --print sysroot)/lib/rustlib/x86_64-pc-windows-gnu/lib/:$PATH
+  ```
 
-(Substitute `x86_64` by `i686` and `gnu` by `msvc` depending on which version of rustc was used to install rustfmt).
+  (Substitute `x86_64` by `i686` and `gnu` by `msvc` depending on which version of rustc was used to install rustfmt).
 
 ## License
 

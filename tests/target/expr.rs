@@ -70,6 +70,12 @@ fn foo() -> bool {
     ) = 1 + 2 + 3
     {}
 
+    if let ast::ItemKind::Trait(_, unsafety, ref generics, ref type_param_bounds, ref trait_items) =
+        item.node
+    {
+        // nothing
+    }
+
     let test = if true { 5 } else { 3 };
 
     if cond() {
@@ -141,6 +147,13 @@ fn baz() {
     unsafe {
         foo();
     }
+
+    // #2289
+    let identifier_0 = unsafe { this_is_58_chars_long_and_line_is_93_chars_long_xxxxxxxxxx };
+    let identifier_1 = unsafe { this_is_59_chars_long_and_line_is_94_chars_long_xxxxxxxxxxx };
+    let identifier_2 = unsafe { this_is_65_chars_long_and_line_is_100_chars_long_xxxxxxxxxxxxxxxx };
+    let identifier_3 =
+        unsafe { this_is_66_chars_long_and_line_is_101_chars_long_xxxxxxxxxxxxxxxxx };
 }
 
 // Test some empty blocks.
@@ -171,41 +184,8 @@ fn issue184(source: &str) {
 
 fn arrays() {
     let x = [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        0,
-        7,
-        8,
-        9,
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        0,
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 7, 8, 9, 0, 1, 2, 3, 4, 5,
+        6, 7, 8, 9, 0,
     ];
 
     let y = [/* comment */ 1, 2 /* post comment */, 3];
@@ -402,9 +382,16 @@ fn newlines_between_list_like_expr() {
     ];
 
     match x {
-        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx |
-        yyyyyyyyyyyyyyyyyyyyyyyyyyyyyy |
-        zzzzzzzzzzzzzzzzzzzzzzzzzzzzzz => foo(a, b, c),
+        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        | yyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+        | zzzzzzzzzzzzzzzzzzzzzzzzzzzzzz => foo(a, b, c),
         _ => bar(),
     };
+}
+
+fn issue2178() {
+    Ok(result
+        .iter()
+        .map(|item| ls_util::rls_to_location(item))
+        .collect())
 }

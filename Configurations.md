@@ -6,49 +6,17 @@ A possible content of `rustfmt.toml` or `.rustfmt.toml` might look like this:
 
 ```toml
 indent_style = "Block"
-array_width = 80
 reorder_imported_names = true
 ```
+
+Each configuration option is either stable or unstable.
+Stable options can be used directly, while unstable options are opt-in.
+To enable unstable options, set `unstable_features = true` in `rustfmt.toml` or pass `--unstable-options` to rustfmt.
 
 # Configuration Options
 
 Below you find a detailed visual guide on all the supported configuration options of rustfmt:
 
-## `array_horizontal_layout_threshold`
-
-How many elements array must have before rustfmt uses horizontal layout.  
-Use this option to prevent a huge array from being vertically formatted.
-
-- **Default value**: `0`
-- **Possible values**: any positive integer
-
-**Note:** A value of `0` results in [`indent_style`](#indent_style) being applied regardless of a line's width.
-
-#### `0` (default):
-
-```rust
-// Each element will be placed on its own line.
-let a = vec![
-    0,
-    1,
-    2,
-    3,
-    4,
-    ...
-    999,
-    1000,
-];
-```
-
-#### `1000`:
-
-```rust
-// Each element will be placed on the same line as much as possible.
-let a = vec![
-    0, 1, 2, 3, 4, ...
-    ..., 999, 1000,
-];
-```
 
 ## `indent_style`
 
@@ -56,6 +24,7 @@ Indent on expressions or items.
 
 - **Default value**: `"Block"`
 - **Possible values**: `"Block"`, `"Visual"`
+- **Stable**: No
 
 ### Array
 
@@ -246,7 +215,7 @@ let lorem = Lorem { ipsum: dolor,
                     sit: amet, };
 ```
 
-See also: [`struct_lit_multiline_style`](#struct_lit_multiline_style), [`indent_style`](#indent_style).
+See also: [`struct_lit_single_line`](#struct_lit_single_line), [`indent_style`](#indent_style).
 
 ### Where predicates
 
@@ -254,7 +223,7 @@ See also: [`struct_lit_multiline_style`](#struct_lit_multiline_style), [`indent_
 
 ```rust
 fn lorem<Ipsum, Dolor, Sit, Amet>() -> T
-where 
+where
     Ipsum: Eq,
     Dolor: Eq,
     Sit: Eq,
@@ -277,82 +246,65 @@ fn lorem<Ipsum, Dolor, Sit, Amet>() -> T
 }
 ```
 
-See also: [`where_density`](#where_density), [`where_layout`](#where_layout).
+## `use_small_heuristics`
 
-## `array_width`
-
-Maximum width of an array literal before falling back to vertical formatting
-
-- **Default value**: `60`
-- **Possible values**: any positive integer
-
-**Note:** A value of `0` results in [`indent_style`](#indent_style) being applied regardless of a line's width.
-
-#### Lines shorter than `array_width`:
-```rust
-let lorem = vec!["ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing", "elit"];
-```
-
-#### Lines longer than `array_width`:
-See [`indent_style`](#indent_style).
-
-## `attributes_on_same_line_as_field`
-
-Try to put attributes on the same line as fields
+Whether to use different formatting for items and expressions if they satisfy a heuristic notion of 'small'.
 
 - **Default value**: `true`
 - **Possible values**: `true`, `false`
-
-#### `true` (default):
-
-```rust
-struct Lorem {
-    #[serde(rename = "Ipsum")] ipsum: usize,
-    #[serde(rename = "Dolor")] dolor: usize,
-    #[serde(rename = "Amet")] amet: usize,
-}
-```
-
-#### `false`:
-
-```rust
-struct Lorem {
-    #[serde(rename = "Ipsum")]
-    ipsum: usize,
-    #[serde(rename = "Dolor")]
-    dolor: usize,
-    #[serde(rename = "Amet")]
-    amet: usize,
-}
-```
-
-## `attributes_on_same_line_as_variant`
-
-Try to put attributes on the same line as variants
-
-- **Default value**: `true`
-- **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `true` (default):
 
 ```rust
 enum Lorem {
-    #[serde(skip_serializing)] Ipsum,
-    #[serde(skip_serializing)] Dolor,
-    #[serde(skip_serializing)] Amet,
-}
-```
-
-#### `false`:
-
-```rust
-enum Lorem {
-    #[serde(skip_serializing)]
     Ipsum,
-    #[serde(skip_serializing)]
-    Dolor,
-    #[serde(skip_serializing)]
-    Amet,
+    Dolor(bool),
+    Sit { amet: Consectetur, adipiscing: Elit },
+}
+
+fn main() {
+    lorem(
+        "lorem",
+        "ipsum",
+        "dolor",
+        "sit",
+        "amet",
+        "consectetur",
+        "adipiscing",
+    );
+
+    let lorem = Lorem { ipsum: dolor, sit: amet };
+
+    let lorem = if ipsum { dolor } else { sit };
+}
+```
+
+#### `false`:
+
+```rust
+enum Lorem {
+    Ipsum,
+    Dolor(bool),
+    Sit {
+        amet: Consectetur,
+        adipiscing: Elit,
+    },
+}
+
+fn main() {
+    lorem("lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing");
+
+    let lorem = Lorem {
+        ipsum: dolor,
+        sit: amet,
+    };
+
+    let lorem = if ipsum {
+        dolor
+    } else {
+        sit
+    };
 }
 ```
 
@@ -362,6 +314,7 @@ Where to put a binary operator when a binary expression goes multiline.
 
 - **Default value**: `"Front"`
 - **Possible values**: `"Front"`, `"Back"`
+- **Stable**: No
 
 #### `"Front"` (default):
 
@@ -381,86 +334,17 @@ let range = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 #### `"Back"`:
 
 ```rust
-let or = foo ||
-    bar ||
-    foobar;
+fn main() {
+    let or = foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo ||
+        barbarbarbarbarbarbarbarbarbarbarbarbarbarbarbar;
 
-let sum = 1234 +
-    5678 +
-    910;
+    let sum = 123456789012345678901234567890 + 123456789012345678901234567890 +
+        123456789012345678901234567890;
 
-let range = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..
-    bbbbbbbbbbbbbbbbbbbbbbbbbbbbb;
+    let range = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..
+        bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;
+}
 ```
-
-## `chain_indent`
-
-Indentation of chain
-
-- **Default value**: `"Block"`
-- **Possible values**: `"Block"`, `"Visual"`
-
-#### `"Block"` (default):
-
-```rust
-let lorem = ipsum
-    .dolor()
-    .sit()
-    .amet()
-    .consectetur()
-    .adipiscing()
-    .elit();
-```
-
-#### `"Visual"`:
-
-```rust
-let lorem = ipsum.dolor()
-                 .sit()
-                 .amet()
-                 .consectetur()
-                 .adipiscing()
-                 .elit();
-```
-
-See also [`chain_width`](#chain_width).
-
-## `chain_width`
-
-Maximum length of a chain to fit on a single line
-
-- **Default value**: `60`
-- **Possible values**: any positive integer
-
-#### Lines shorter than `chain_width`:
-```rust
-let lorem = ipsum.dolor().sit().amet().consectetur().adipiscing().elit();
-```
-
-#### Lines longer than `chain_width`:
-See [`chain_indent`](#chain_indent).
-
-## `chain_split_single_child`
-
-Split a chain with a single child if its length exceeds [`chain_width`](#chain_width).
-
-- **Default value**: `false`
-- **Possible values**: `false`, `true`
-
-#### `false` (default):
-
-```rust
-let files = fs::read_dir("tests/coverage/source").expect("Couldn't read source dir");
-```
-
-#### `true`:
-
-```rust
-let files = fs::read_dir("tests/coverage/source")
-    .expect("Couldn't read source dir");
-```
-
-See also [`chain_width`](#chain_width).
 
 ## `combine_control_expr`
 
@@ -468,6 +352,7 @@ Combine control expressions with function calls.
 
 - **Default value**: `true`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `true` (default):
 
@@ -575,15 +460,16 @@ Maximum length of comments. No effect unless`wrap_comments = true`.
 
 - **Default value**: `80`
 - **Possible values**: any positive integer
+- **Stable**: No
 
 **Note:** A value of `0` results in [`wrap_comments`](#wrap_comments) being applied regardless of a line's width.
 
-#### Comments shorter than `comment_width`:
+#### `80` (default; comments shorter than `comment_width`):
 ```rust
 // Lorem ipsum dolor sit amet, consectetur adipiscing elit.
 ```
 
-#### Comments longer than `comment_width`:
+#### `60` (comments longer than `comment_width`):
 ```rust
 // Lorem ipsum dolor sit amet,
 // consectetur adipiscing elit.
@@ -597,6 +483,7 @@ Replace strings of _ wildcards by a single .. in tuple patterns
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `false` (default):
 
@@ -616,6 +503,7 @@ Brace style for control flow constructs
 
 - **Default value**: `"AlwaysSameLine"`
 - **Possible values**: `"AlwaysNextLine"`, `"AlwaysSameLine"`, `"ClosingNextLine"`
+- **Stable**: No
 
 #### `"AlwaysSameLine"` (default):
 
@@ -657,6 +545,7 @@ Don't reformat anything
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 ## `error_on_line_overflow`
 
@@ -664,6 +553,7 @@ Error if unable to get all lines within `max_width`
 
 - **Default value**: `true`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 See also [`max_width`](#max_width).
 
@@ -673,6 +563,7 @@ Error if unable to get all comment lines within `comment_width`.
 
 - **Default value**: `true`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 See also [`comment_width`](#comment_width).
 
@@ -681,7 +572,8 @@ See also [`comment_width`](#comment_width).
 Argument density in functions
 
 - **Default value**: `"Tall"`
-- **Possible values**: `"Compressed"`, `"CompressedIfEmpty"`, `"Tall"`, `"Vertical"`
+- **Possible values**: `"Compressed"`, `"Tall"`, `"Vertical"`
+- **Stable**: No
 
 #### `"Tall"` (default):
 
@@ -741,35 +633,6 @@ trait Lorem {
 }
 ```
 
-#### `"CompressedIfEmpty"`:
-
-```rust
-trait Lorem {
-    fn lorem(ipsum: Ipsum, dolor: Dolor, sit: Sit, amet: Amet);
-
-    fn lorem(ipsum: Ipsum, dolor: Dolor, sit: Sit, amet: Amet) {
-        // body
-    }
-
-    fn lorem(
-        ipsum: Ipsum, dolor: Dolor, sit: Sit, amet: Amet, consectetur: Consectetur,
-        adipiscing: Adipiscing, elit: Elit,
-    );
-
-    fn lorem(
-        ipsum: Ipsum,
-        dolor: Dolor,
-        sit: Sit,
-        amet: Amet,
-        consectetur: Consectetur,
-        adipiscing: Adipiscing,
-        elit: Elit,
-    ) {
-        // body
-    }
-}
-```
-
 #### `"Vertical"`:
 
 ```rust
@@ -806,39 +669,6 @@ trait Lorem {
 }
 ```
 
-## `fn_args_paren_newline`
-
-If function argument parenthesis goes on a newline
-
-- **Default value**: `false`
-- **Possible values**: `true`, `false`
-
-#### `false` (default):
-
-```rust
-fn lorem(
-    ipsum: Ipsum,
-    dolor: Dolor,
-    sit: Sit,
-    amet: Amet,
-) -> DolorSitAmetConsecteturAdipiscingElitLoremIpsumDolorSitAmetConsecteturAdipiscingElit {
-    // body
-}
-```
-
-#### `true`:
-
-```rust
-fn lorem
-    (
-    ipsum: Ipsum,
-    dolor: Dolor,
-    sit: Sit,
-    amet: Amet,
-) -> DolorSitAmetConsecteturAdipiscingElitLoremIpsumDolorSitAmetConsecteturAdipiscingElit {
-    // body
-}
-```
 
 ## `brace_style`
 
@@ -846,6 +676,7 @@ Brace style for items
 
 - **Default value**: `"SameLineWhere"`
 - **Possible values**: `"AlwaysNextLine"`, `"PreferSameLine"`, `"SameLineWhere"`
+- **Stable**: No
 
 ### Functions
 
@@ -951,35 +782,21 @@ struct Dolor<T>
 }
 ```
 
-## `fn_call_width`
 
-Maximum width of the args of a function call before falling back to vertical formatting
+## `empty_item_single_line`
 
-- **Default value**: `60`
-- **Possible values**: any positive integer
-
-**Note:** A value of `0` results in vertical formatting being applied regardless of a line's width.
-
-#### Function call shorter than `fn_call_width`:
-```rust
-lorem("lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing", "elit");
-```
-
-#### Function call longer than `fn_call_width`:
-
-See [`indent_style`](#indent_style).
-
-## `fn_empty_single_line`
-
-Put empty-body functions on a single line
+Put empty-body functions and impls on a single line
 
 - **Default value**: `true`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `true` (default):
 
 ```rust
 fn lorem() {}
+
+impl Lorem {}
 ```
 
 #### `false`:
@@ -987,52 +804,13 @@ fn lorem() {}
 ```rust
 fn lorem() {
 }
-```
 
-See also [`control_brace_style`](#control_brace_style).
-
-## `fn_return_indent`
-
-Location of return type in function declaration
-
-- **Default value**: `"WithArgs"`
-- **Possible values**: `"WithArgs"`, `"WithWhereClause"`
-
-#### `"WithArgs"` (default):
-
-```rust
-fn lorem(ipsum: Ipsum,
-         dolor: Dolor,
-         sit: Sit,
-         amet: Amet,
-         consectetur: Consectetur,
-         adipiscing: Adipiscing)
-         -> Elit
-    where Ipsum: Eq
-{
-    // body
+impl Lorem {
 }
-
 ```
 
-#### `"WithWhereClause"`:
+See also [`brace_style`](#brace_style), [`control_brace_style`](#control_brace_style).
 
-```rust
-fn lorem(ipsum: Ipsum,
-         dolor: Dolor,
-         sit: Sit,
-         amet: Amet,
-         consectetur: Consectetur,
-         adipiscing: Adipiscing)
-    -> Elit
-    where Ipsum: Eq
-{
-    // body
-}
-
-```
-
-**Note**: This option only takes effect when `indent_style` is set to `"Visual"`.
 
 ## `fn_single_line`
 
@@ -1040,6 +818,7 @@ Put single-expression functions on a single line
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `false` (default):
 
@@ -1067,12 +846,45 @@ fn lorem() -> usize {
 
 See also [`control_brace_style`](#control_brace_style).
 
+
+## `where_single_line`
+
+To force single line where layout
+
+- **Default value**: `false`
+- **Possible values**: `true`, `false`
+- **Stable**: No
+
+#### `false` (default):
+
+```rust
+impl<T> Lorem for T
+where
+    Option<T>: Ipsum,
+{
+    ...
+}
+```
+
+#### `true`:
+
+```rust
+impl<T> Lorem for T
+where Option<T>: Ipsum {
+    ...
+}
+```
+
+See also [`brace_style`](#brace_style), [`control_brace_style`](#control_brace_style).
+
+
 ## `force_explicit_abi`
 
 Always print the abi for extern items
 
 - **Default value**: `true`
 - **Possible values**: `true`, `false`
+- **Stable**: Yes
 
 **Note:** Non-"C" ABIs are always printed. If `false` then "C" is removed.
 
@@ -1092,23 +904,13 @@ extern {
 }
 ```
 
-## `force_format_strings`
-
-Always format string literals
-
-- **Default value**: `false`
-- **Possible values**: `true`, `false`
-
-See [`format_strings`](#format_strings).
-
-See also [`max_width`](#max_width).
-
 ## `format_strings`
 
 Format string literals where necessary
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `false` (default):
 
@@ -1124,7 +926,7 @@ let lorem =
      adipiscing elit lorem ipsum dolor sit";
 ```
 
-See also [`force_format_strings`](#force_format_strings), [`max_width`](#max_width).
+See also [`max_width`](#max_width).
 
 ## `hard_tabs`
 
@@ -1132,6 +934,7 @@ Use tab characters for indentation, spaces for alignment
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: Yes
 
 #### `false` (default):
 
@@ -1151,58 +954,6 @@ fn lorem() -> usize {
 
 See also: [`tab_spaces`](#tab_spaces).
 
-## `impl_empty_single_line`
-
-Put empty-body implementations on a single line
-
-- **Default value**: `true`
-- **Possible values**: `true`, `false`
-
-#### `true` (default):
-
-```rust
-impl Lorem {}
-```
-
-#### `false`:
-
-```rust
-impl Lorem {
-}
-```
-
-See also [`brace_style`](#brace_style).
-
-## `indent_match_arms`
-
-Indent match arms instead of keeping them at the same indentation level as the match keyword
-
-- **Default value**: `true`
-- **Possible values**: `true`, `false`
-
-#### `true` (default):
-
-```rust
-match lorem {
-    Lorem::Ipsum => (),
-    Lorem::Dolor => (),
-    Lorem::Sit => (),
-    Lorem::Amet => (),
-}
-```
-
-#### `false`:
-
-```rust
-match lorem {
-Lorem::Ipsum => (),
-Lorem::Dolor => (),
-Lorem::Sit => (),
-Lorem::Amet => (),
-}
-```
-
-See also: [`match_block_trailing_comma`](#match_block_trailing_comma), [`wrap_match_arms`](#wrap_match_arms).
 
 ## `imports_indent`
 
@@ -1210,6 +961,7 @@ Indent style of imports
 
 - **Default Value**: `"Visual"`
 - **Possible values**: `"Block"`, `"Visual"`
+- **Stable**: No
 
 #### `"Visual"` (default):
 
@@ -1237,6 +989,7 @@ Item layout inside a imports block
 
 - **Default value**: "Mixed"
 - **Possible values**: "Horizontal", "HorizontalVertical", "Mixed", "Vertical"
+- **Stable**: No
 
 #### `"Mixed"` (default):
 
@@ -1249,7 +1002,7 @@ use foo::{aaa, bbb, ccc,
 
 #### `"Horizontal"`:
 
-**Note**: This option forces to put everything on one line and may exceeds `max_width`.
+**Note**: This option forces all imports onto one line and may exceed `max_width`.
 
 ```rust
 use foo::{xxx, yyy, zzz};
@@ -1285,47 +1038,6 @@ use foo::{aaa,
           fff};
 ```
 
-## `match_arm_forces_newline`
-
-Consistently put match arms (block based or not) in a newline.
-
-- **Default value**: `false`
-- **Possible values**: `true`, `false`
-
-#### `false` (default):
-
-```rust
-match x {
-    // a non-empty block
-    X0 => {
-        f();
-    }
-    // an empty block
-    X1 => {}
-    // a non-block
-    X2 => println!("ok"),
-}
-```
-
-#### `true`:
-
-```rust
-match x {
-    // a non-empty block
-    X0 => {
-        f();
-    }
-    // an empty block
-    X1 =>
-        {}
-    // a non-block
-    X2 => {
-        println!("ok")
-    }
-}
-```
-
-See also: [`wrap_match_arms`](#wrap_match_arms).
 
 ## `match_block_trailing_comma`
 
@@ -1333,6 +1045,7 @@ Put a trailing comma after a block based match arm (non-block arms are not affec
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `false` (default):
 
@@ -1356,40 +1069,7 @@ match lorem {
 }
 ```
 
-See also: [`indent_match_arms`](#indent_match_arms), [`trailing_comma`](#trailing_comma), [`wrap_match_arms`](#wrap_match_arms).
-
-## `match_pattern_separator_break_point`
-
-Put a match sub-patterns' separator (`|`) in front or back.
-
-- **Default value**: `"Back"`
-- **Possible values**: `"Back"`, `"Front"`
-
-#### `"Back"` (default):
-
-```rust
-match m {
-    Variant::Tag |
-    Variant::Tag2 |
-    Variant::Tag3 |
-    Variant::Tag4 |
-    Variant::Tag5 |
-    Variant::Tag6 => {}
-}
-```
-
-#### `Front`:
-
-```rust
-match m {
-    Variant::Tag
-    | Variant::Tag2
-    | Variant::Tag3
-    | Variant::Tag4
-    | Variant::Tag5
-    | Variant::Tag6 => {}
-}
-```
+See also: [`trailing_comma`](#trailing_comma), [`match_arm_blocks`](#match_arm_blocks).
 
 ## `max_width`
 
@@ -1397,6 +1077,7 @@ Maximum width of each line
 
 - **Default value**: `100`
 - **Possible values**: any positive integer
+- **Stable**: Yes
 
 See also [`error_on_line_overflow`](#error_on_line_overflow).
 
@@ -1406,6 +1087,7 @@ Merge multiple derives into a single one.
 
 - **Default value**: `true`
 - **Possible values**: `true`, `false`
+- **Stable**: Yes
 
 #### `true` (default):
 
@@ -1423,12 +1105,13 @@ pub enum Foo {}
 pub enum Foo {}
 ```
 
-## `multiline_closure_forces_block`
+## `force_multiline_blocks`
 
-Force multiline closure bodies to be wrapped in a block
+Force multiline closure and match arm bodies to be wrapped in a block
 
 - **Default value**: `false`
 - **Possible values**: `false`, `true`
+- **Stable**: No
 
 #### `false` (default):
 
@@ -1437,6 +1120,13 @@ result.and_then(|maybe_value| match maybe_value {
     None => ...,
     Some(value) => ...,
 })
+
+match lorem {
+    None => if ipsum {
+        println!("Hello World");
+    },
+    Some(dolor) => ...,
+}
 ```
 
 #### `true`:
@@ -1449,29 +1139,7 @@ result.and_then(|maybe_value| {
         Some(value) => ...,
     }
 })
-```
 
-## `multiline_match_arm_forces_block`
-
-Force multiline match arm bodies to be wrapped in a block
-
-- **Default value**: `false`
-- **Possible values**: `false`, `true`
-
-#### `false` (default):
-
-```rust
-match lorem {
-    None => if ipsum {
-        println!("Hello World");
-    },
-    Some(dolor) => ...,
-}
-```
-
-#### `true`:
-
-```rust
 match lorem {
     None => {
         if ipsum {
@@ -1482,12 +1150,14 @@ match lorem {
 }
 ```
 
+
 ## `newline_style`
 
 Unix or Windows line endings
 
 - **Default value**: `"Unix"`
 - **Possible values**: `"Native"`, `"Unix"`, `"Windows"`
+- **Stable**: Yes
 
 ## `normalize_comments`
 
@@ -1495,6 +1165,7 @@ Convert /* */ comments to // comments where possible
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: Yes
 
 #### `false` (default):
 
@@ -1522,6 +1193,7 @@ Reorder lists of names in import statements alphabetically
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `false` (default):
 
@@ -1543,6 +1215,7 @@ Reorder import statements alphabetically
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `false` (default):
 
@@ -1570,6 +1243,7 @@ Reorder import statements in group
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 **Note:** This option takes effect only when [`reorder_imports`](#reorder_imports) is set to `true`.
 
@@ -1605,6 +1279,7 @@ Reorder `extern crate` statements alphabetically
 
 - **Default value**: `true`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `true` (default):
 
@@ -1632,6 +1307,7 @@ Reorder `extern crate` statements in group
 
 - **Default value**: `true`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 **Note:** This option takes effect only when [`reorder_imports`](#reorder_imports) is set to `true`.
 
@@ -1667,6 +1343,7 @@ Report `TODO` items in comments.
 
 - **Default value**: `"Never"`
 - **Possible values**: `"Always"`, `"Unnumbered"`, `"Never"`
+- **Stable**: No
 
 Warns about any comments containing `TODO` in them when set to `"Always"`. If
 it contains a `#X` (with `X` being a number) in parentheses following the
@@ -1680,6 +1357,7 @@ Report `FIXME` items in comments.
 
 - **Default value**: `"Never"`
 - **Possible values**: `"Always"`, `"Unnumbered"`, `"Never"`
+- **Stable**: No
 
 Warns about any comments containing `FIXME` in them when set to `"Always"`. If
 it contains a `#X` (with `X` being a number) in parentheses following the
@@ -1687,30 +1365,6 @@ it contains a `#X` (with `X` being a number) in parentheses following the
 
 See also [`report_todo`](#report_todo).
 
-## `single_line_if_else_max_width`
-
-Maximum line length for single line if-else expressions.
-
-- **Default value**: `50`
-- **Possible values**: any positive integer
-
-**Note:** A value of `0` results in if-else expressions being broken regardless of their line's width.
-
-#### Lines shorter than `single_line_if_else_max_width`:
-```rust
-let lorem = if ipsum { dolor } else { sit };
-```
-
-#### Lines longer than `single_line_if_else_max_width`:
-```rust
-let lorem = if ipsum {
-    dolor
-} else {
-    sit
-};
-```
-
-See also: [`control_brace_style`](#control_brace_style).
 
 ## `skip_children`
 
@@ -1718,6 +1372,7 @@ Don't reformat out of line modules
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 ## `space_after_colon`
 
@@ -1725,6 +1380,7 @@ Leave a space after the colon.
 
 - **Default value**: `true`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `true` (default):
 
@@ -1756,6 +1412,7 @@ Leave a space before the colon.
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `false` (default):
 
@@ -1787,6 +1444,7 @@ The maximum diff of width between struct fields to be aligned with each other.
 
 - **Default value** : 0
 - **Possible values**: any positive integer
+- **Stable**: No
 
 #### `0` (default):
 
@@ -1808,14 +1466,13 @@ struct Foo {
 }
 ```
 
-```
-
 ## `spaces_around_ranges`
 
 Put spaces around the .. and ... range operators
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `false` (default):
 
@@ -1831,89 +1488,61 @@ let lorem = 0 .. 10;
 
 ## `spaces_within_parens_and_brackets`
 
-Put spaces within non-empty generic arguments
+Put spaces within non-empty generic arguments, parentheses, and square brackets
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `false` (default):
 
 ```rust
+// generic arguments
 fn lorem<T: Eq>(t: T) {
     // body
 }
-```
 
-#### `true`:
-
-```rust
-fn lorem< T: Eq >(t: T) {
-    // body
-}
-```
-
-See also: [`spaces_within_parens_and_brackets`](#spaces_within_parens_and_brackets), [`spaces_within_parens_and_brackets`](#spaces_within_parens_and_brackets).
-
-## `spaces_within_parens_and_brackets`
-
-Put spaces within non-empty parentheses
-
-- **Default value**: `false`
-- **Possible values**: `true`, `false`
-
-#### `false` (default):
-
-```rust
+// non-empty parentheses
 fn lorem<T: Eq>(t: T) {
     let lorem = (ipsum, dolor);
 }
-```
 
-#### `true`:
-
-```rust
-fn lorem<T: Eq>( t: T ) {
-    let lorem = ( ipsum, dolor );
-}
-```
-
-See also: [`spaces_within_parens_and_brackets`](#spaces_within_parens_and_brackets), [`spaces_within_parens_and_brackets`](#spaces_within_parens_and_brackets).
-
-## `spaces_within_parens_and_brackets`
-
-Put spaces within non-empty square brackets
-
-- **Default value**: `false`
-- **Possible values**: `true`, `false`
-
-#### `false` (default):
-
-```rust
+// non-empty square brackets
 let lorem: [usize; 2] = [ipsum, dolor];
 ```
 
 #### `true`:
 
 ```rust
+// generic arguments
+fn lorem< T: Eq >(t: T) {
+    // body
+}
+
+// non-empty parentheses
+fn lorem<T: Eq>( t: T ) {
+    let lorem = ( ipsum, dolor );
+}
+
+// non-empty square brackets
 let lorem: [ usize; 2 ] = [ ipsum, dolor ];
 ```
 
-See also: [`spaces_within_parens_and_brackets`](#spaces_within_parens_and_brackets), [`spaces_within_parens_and_brackets`](#spaces_within_parens_and_brackets).
+## `struct_lit_single_line`
 
-## `struct_lit_multiline_style`
+Put small struct literals on a single line
 
-Multiline style on literal structs
+- **Default value**: `true`
+- **Possible values**: `true`, `false`
+- **Stable**: No
 
-- **Default value**: `"PreferSingle"`
-- **Possible values**: `"ForceMulti"`, `"PreferSingle"`
-
-#### `"PreferSingle"` (default):
+#### `true` (default):
 
 ```rust
 let lorem = Lorem { ipsum: dolor, sit: amet };
 ```
 
-#### `"ForceMulti"`:
+#### `false`:
 
 ```rust
 let lorem = Lorem {
@@ -1922,56 +1551,8 @@ let lorem = Lorem {
 };
 ```
 
-See also: [`indent_style`](#indent_style), [`struct_lit_width`](#struct_lit_width).
+See also: [`indent_style`](#indent_style).
 
-## `struct_lit_width`
-
-Maximum width in the body of a struct lit before falling back to vertical formatting
-
-- **Default value**: `18`
-- **Possible values**: any positive integer
-
-**Note:** A value of `0` results in vertical formatting being applied regardless of a line's width.
-
-#### Lines shorter than `struct_lit_width`:
-```rust
-let lorem = Lorem { ipsum: dolor, sit: amet };
-```
-
-#### Lines longer than `struct_lit_width`:
-See [`indent_style`](#indent_style).
-
-See also: [`struct_lit_multiline_style`](#struct_lit_multiline_style), [`indent_style`](#indent_style).
-
-## `struct_variant_width`
-
-Maximum width in the body of a struct variant before falling back to vertical formatting
-
-- **Default value**: `35`
-- **Possible values**: any positive integer
-
-**Note:** A value of `0` results in vertical formatting being applied regardless of a line's width.
-
-#### Struct variants shorter than `struct_variant_width`:
-```rust
-enum Lorem {
-    Ipsum,
-    Dolor(bool),
-    Sit { amet: Consectetur, adipiscing: Elit },
-}
-```
-
-#### Struct variants longer than `struct_variant_width`:
-```rust
-enum Lorem {
-    Ipsum,
-    Dolor(bool),
-    Sit {
-        amet: Consectetur,
-        adipiscing: Elit,
-    },
-}
-```
 
 ## `tab_spaces`
 
@@ -1979,6 +1560,7 @@ Number of spaces per tab
 
 - **Default value**: `4`
 - **Possible values**: any positive integer
+- **Stable**: Yes
 
 #### `4` (default):
 
@@ -2004,35 +1586,6 @@ fn lorem() {
 
 See also: [`hard_tabs`](#hard_tabs).
 
-## `take_source_hints`
-
-Retain some formatting characteristics from the source code
-
-- **Default value**: `false`
-- **Possible values**: `true`, `false`
-
-#### `false` (default):
-
-```rust
-lorem
-    .ipsum()
-    .dolor(|| { sit.amet().consectetur().adipiscing().elit(); });
-```
-
-#### `true`:
-
-```rust
-lorem
-    .ipsum()
-    .dolor(|| {
-               sit.amet()
-                   .consectetur()
-                   .adipiscing()
-                   .elit();
-           });
-```
-
-Note: This only applies if the call chain within the inner closure had already been formatted on separate lines before running rustfmt.
 
 ## `trailing_comma`
 
@@ -2040,6 +1593,7 @@ How to handle trailing commas for lists
 
 - **Default value**: `"Vertical"`
 - **Possible values**: `"Always"`, `"Never"`, `"Vertical"`
+- **Stable**: No
 
 #### `"Vertical"` (default):
 
@@ -2091,6 +1645,7 @@ Add trailing semicolon after break, continue and return
 
 - **Default value**: `true`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `true` (default):
 ```rust
@@ -2112,6 +1667,7 @@ Determines if `+` or `=` are wrapped in spaces in the punctuation of types
 
 - **Default value**: `"Wide"`
 - **Possible values**: `"Compressed"`, `"Wide"`
+- **Stable**: No
 
 #### `"Wide"` (default):
 
@@ -2135,6 +1691,7 @@ Replace uses of the try! macro by the ? shorthand
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `false` (default):
 
@@ -2148,163 +1705,6 @@ let lorem = try!(ipsum.map(|dolor|dolor.sit()));
 let lorem = ipsum.map(|dolor| dolor.sit())?;
 ```
 
-## `where_density`
-
-Density of a where clause.
-
-- **Default value**: `"Vertical"`
-- **Possible values**: `"Compressed"`, `"CompressedIfEmpty"`, `"Tall"`, `"Vertical"`
-
-#### `"Vertical"` (default):
-
-```rust
-trait Lorem {
-    fn ipsum<Dolor>(dolor: Dolor) -> Sit
-    where
-        Dolor: Eq;
-
-    fn ipsum<Dolor>(dolor: Dolor) -> Sit
-    where
-        Dolor: Eq,
-    {
-        // body
-    }
-}
-```
-
-**Note:** `where_density = "Vertical"` currently produces the same output as `where_density = "Tall"`.
-
-#### `"CompressedIfEmpty"`:
-
-```rust
-trait Lorem {
-    fn ipsum<Dolor>(dolor: Dolor) -> Sit
-    where Dolor: Eq;
-
-    fn ipsum<Dolor>(dolor: Dolor) -> Sit
-    where
-        Dolor: Eq,
-    {
-        // body
-    }
-}
-```
-
-#### `"Compressed"`:
-
-```rust
-trait Lorem {
-    fn ipsum<Dolor>(dolor: Dolor) -> Sit
-    where Dolor: Eq;
-
-    fn ipsum<Dolor>(dolor: Dolor) -> Sit
-    where Dolor: Eq {
-        // body
-    }
-}
-```
-
-#### `"Tall"`:
-
-```rust
-trait Lorem {
-    fn ipsum<Dolor>(dolor: Dolor) -> Sit
-    where
-        Dolor: Eq;
-
-    fn ipsum<Dolor>(dolor: Dolor) -> Sit
-    where
-        Dolor: Eq,
-    {
-        // body
-    }
-}
-```
-
-**Note:** `where_density = "Tall"` currently produces the same output as `where_density = "Vertical"`.
-
-See also: [`where_layout`](#where_layout), [`indent_style`](#indent_style).
-
-## `where_layout`
-
-Element layout inside a where clause
-
-- **Default value**: `"Vertical"`
-- **Possible values**: `"Horizontal"`, `"HorizontalVertical"`, `"Mixed"`, `"Vertical"`
-
-#### `"Vertical"` (default):
-
-```rust
-fn lorem<Ipsum, Dolor>(ipsum: Ipsum, dolor: Dolor)
-    where Ipsum: IpsumDolorSitAmet,
-          Dolor: DolorSitAmetConsectetur
-{
-    // body
-}
-
-fn lorem<Ipsum, Dolor, Sit, Amet>(ipsum: Ipsum, dolor: Dolor, sit: Sit, amet: Amet)
-    where Ipsum: IpsumDolorSitAmet,
-          Dolor: DolorSitAmetConsectetur,
-          Sit: SitAmetConsecteturAdipiscing,
-          Amet: AmetConsecteturAdipiscingElit
-{
-    // body
-}
-```
-
-#### `"Horizontal"`:
-
-```rust
-fn lorem<Ipsum, Dolor>(ipsum: Ipsum, dolor: Dolor)
-    where Ipsum: IpsumDolorSitAmet, Dolor: DolorSitAmetConsectetur
-{
-    // body
-}
-
-fn lorem<Ipsum, Dolor, Sit, Amet>(ipsum: Ipsum, dolor: Dolor, sit: Sit, amet: Amet)
-    where Ipsum: IpsumDolorSitAmet, Dolor: DolorSitAmetConsectetur, Sit: SitAmetConsecteturAdipiscing, Amet: AmetConsecteturAdipiscingElit
-{
-    // body
-}
-```
-
-#### `"HorizontalVertical"`:
-
-```rust
-fn lorem<Ipsum, Dolor>(ipsum: Ipsum, dolor: Dolor)
-    where Ipsum: IpsumDolorSitAmet, Dolor: DolorSitAmetConsectetur
-{
-    // body
-}
-
-fn lorem<Ipsum, Dolor, Sit, Amet>(ipsum: Ipsum, dolor: Dolor, sit: Sit, amet: Amet)
-    where Ipsum: IpsumDolorSitAmet,
-          Dolor: DolorSitAmetConsectetur,
-          Sit: SitAmetConsecteturAdipiscing,
-          Amet: AmetConsecteturAdipiscingElit
-{
-    // body
-}
-```
-
-#### `"Mixed"`:
-
-```rust
-fn lorem<Ipsum, Dolor>(ipsum: Ipsum, dolor: Dolor)
-    where Ipsum: IpsumDolorSitAmet, Dolor: DolorSitAmetConsectetur
-{
-    // body
-}
-
-fn lorem<Ipsum, Dolor, Sit, Amet>(ipsum: Ipsum, dolor: Dolor, sit: Sit, amet: Amet)
-    where Ipsum: IpsumDolorSitAmet, Dolor: DolorSitAmetConsectetur,
-          Sit: SitAmetConsecteturAdipiscing, Amet: AmetConsecteturAdipiscingElit
-{
-    // body
-}
-```
-
-See also: [`where_density`](#where_density), [`indent_style`](#indent_style).
 
 ## `wrap_comments`
 
@@ -2312,6 +1712,7 @@ Break comments to fit on the line
 
 - **Default value**: `false`
 - **Possible values**: `true`, `false`
+- **Stable**: Yes
 
 #### `false` (default):
 
@@ -2329,12 +1730,13 @@ Break comments to fit on the line
 // commodo consequat.
 ```
 
-## `wrap_match_arms`
+## `match_arm_blocks`
 
 Wrap the body of arms in blocks when it does not fit on the same line with the pattern of arms
 
 - **Default value**: `true`
 - **Possible values**: `true`, `false`
+- **Stable**: No
 
 #### `true` (default):
 
@@ -2357,7 +1759,7 @@ match lorem {
 }
 ```
 
-See also: [`indent_match_arms`](#indent_match_arms), [`match_block_trailing_comma`](#match_block_trailing_comma).
+See also: [`match_block_trailing_comma`](#match_block_trailing_comma).
 
 ## `write_mode`
 
@@ -2365,3 +1767,98 @@ What Write Mode to use when none is supplied: Replace, Overwrite, Display, Diff,
 
 - **Default value**: `"Overwrite"`
 - **Possible values**: `"Checkstyle"`, `"Coverage"`, `"Diff"`, `"Display"`, `"Overwrite"`, `"Plain"`, `"Replace"`, `"Modified"`
+- **Stable**: No
+
+## `blank_lines_upper_bound`
+
+Maximum number of blank lines which can be put between items. If more than this number of consecutive empty
+lines are found, they are trimmed down to match this integer.
+
+- **Default value**: `1`
+- **Possible values**: *unsigned integer*
+- **Stable**: No
+
+### Example
+Original Code:
+
+```rust
+fn foo() {
+    println!("a");
+}
+
+
+
+fn bar() {
+    println!("b");
+
+
+    println!("c");
+}
+```
+
+#### `1` (default):
+```rust
+fn foo() {
+    println!("a");
+}
+
+fn bar() {
+    println!("b");
+
+    println!("c");
+}
+```
+
+#### `2` (default):
+```rust
+fn foo() {
+    println!("a");
+}
+
+
+fn bar() {
+    println!("b");
+
+
+    println!("c");
+}
+```
+
+See also: [`blank_lines_lower_bound`](#blank_lines_lower_bound)
+
+## `blank_lines_lower_bound`
+
+Minimum number of blank lines which must be put between items. If two items have fewer blank lines between
+them, additional blank lines are inserted.
+
+- **Default value**: `0`
+- **Possible values**: *unsigned integer*
+- **Stable**: No
+
+### Example
+Original Code (rustfmt will not change it with the default value of `0`):
+
+```rust
+fn foo() {
+    println!("a");
+}
+fn bar() {
+    println!("b");
+    println!("c");
+}
+```
+
+#### `1`
+```rust
+fn foo() {
+
+    println!("a");
+}
+
+fn bar() {
+
+    println!("b");
+
+    println!("c");
+}
+```

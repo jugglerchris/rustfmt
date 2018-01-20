@@ -54,6 +54,8 @@ implement_spanned!(ast::Field);
 implement_spanned!(ast::ForeignItem);
 implement_spanned!(ast::Item);
 implement_spanned!(ast::Local);
+implement_spanned!(ast::TraitItem);
+implement_spanned!(ast::ImplItem);
 
 impl Spanned for ast::Stmt {
     fn span(&self) -> Span {
@@ -99,6 +101,15 @@ impl Spanned for ast::Arg {
             mk_sp(self.pat.span.lo(), self.ty.span.hi())
         } else {
             self.ty.span
+        }
+    }
+}
+
+impl Spanned for ast::GenericParam {
+    fn span(&self) -> Span {
+        match *self {
+            ast::GenericParam::Lifetime(ref lifetime_def) => lifetime_def.span(),
+            ast::GenericParam::Type(ref ty) => ty.span(),
         }
     }
 }

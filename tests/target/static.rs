@@ -2,50 +2,10 @@ const FILE_GENERIC_READ: DWORD =
     STANDARD_RIGHTS_READ | FILE_READ_DATA | FILE_READ_ATTRIBUTES | FILE_READ_EA | SYNCHRONIZE;
 
 static boolnames: &'static [&'static str] = &[
-    "bw",
-    "am",
-    "xsb",
-    "xhp",
-    "xenl",
-    "eo",
-    "gn",
-    "hc",
-    "km",
-    "hs",
-    "in",
-    "db",
-    "da",
-    "mir",
-    "msgr",
-    "os",
-    "eslok",
-    "xt",
-    "hz",
-    "ul",
-    "xon",
-    "nxon",
-    "mc5i",
-    "chts",
-    "nrrmc",
-    "npc",
-    "ndscr",
-    "ccc",
-    "bce",
-    "hls",
-    "xhpa",
-    "crxm",
-    "daisy",
-    "xvpa",
-    "sam",
-    "cpix",
-    "lpix",
-    "OTbs",
-    "OTns",
-    "OTnc",
-    "OTMT",
-    "OTNL",
-    "OTpt",
-    "OTxr",
+    "bw", "am", "xsb", "xhp", "xenl", "eo", "gn", "hc", "km", "hs", "in", "db", "da", "mir",
+    "msgr", "os", "eslok", "xt", "hz", "ul", "xon", "nxon", "mc5i", "chts", "nrrmc", "npc",
+    "ndscr", "ccc", "bce", "hls", "xhpa", "crxm", "daisy", "xvpa", "sam", "cpix", "lpix", "OTbs",
+    "OTns", "OTnc", "OTMT", "OTNL", "OTpt", "OTxr",
 ];
 
 static mut name: SomeType =
@@ -62,3 +22,6 @@ impl Color {
 // #1391
 pub const XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX: NTSTATUS =
     0 as usize;
+
+pub const XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:
+    Yyyyyyyyyyyyyyyyyyyyyyyyyyyy = 1;

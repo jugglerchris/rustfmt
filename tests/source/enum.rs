@@ -165,3 +165,18 @@ enum State {
     TimedOut,
     Disconnected,
 }
+
+// #2190
+#[derive(Debug, Fail)]
+enum AnError {
+    #[fail(display = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    UnexpectedSingleToken { token: syn::Token },
+}
+
+// #2193
+enum WidthOf101 {
+    #[fail(display = ".....................................................")] Io(::std::io::Error),
+    #[fail(display = ".....................................................")] Ioo(::std::io::Error),
+    Xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx(::std::io::Error),
+    Xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx(::std::io::Error),
+}

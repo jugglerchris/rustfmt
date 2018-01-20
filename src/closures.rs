@@ -31,7 +31,6 @@ use utils::{last_line_width, left_most_sub_expr, stmt_expr};
 //     statement without needing a semi-colon), then adding or removing braces
 //     can change whether it is treated as an expression or statement.
 
-
 pub fn rewrite_closure(
     capture: ast::CaptureBy,
     fn_decl: &ast::FnDecl,
@@ -82,7 +81,7 @@ fn try_rewrite_without_block(
 ) -> Option<String> {
     let expr = get_inner_expr(expr, prefix, context);
 
-    if is_block_closure_forced(expr) {
+    if is_block_closure_forced(context, expr) {
         rewrite_closure_with_block(expr, prefix, context, shape)
     } else {
         rewrite_closure_expr(expr, prefix, context, body_shape)
@@ -108,7 +107,7 @@ fn get_inner_expr<'a>(
 
 // Figure out if a block is necessary.
 fn needs_block(block: &ast::Block, prefix: &str, context: &RewriteContext) -> bool {
-    is_unsafe_block(block) || block.stmts.len() > 1 || context.inside_macro
+    is_unsafe_block(block) || block.stmts.len() > 1
         || block_contains_comment(block, context.codemap) || prefix.contains('\n')
 }
 
@@ -119,6 +118,12 @@ fn rewrite_closure_with_block(
     context: &RewriteContext,
     shape: Shape,
 ) -> Option<String> {
+    let left_most = left_most_sub_expr(body);
+    let veto_block = left_most != body && !classify::expr_requires_semi_to_be_stmt(left_most);
+    if veto_block {
+        return None;
+    }
+
     let block = ast::Block {
         stmts: vec![
             ast::Stmt {
@@ -130,8 +135,10 @@ fn rewrite_closure_with_block(
         id: ast::NodeId::new(0),
         rules: ast::BlockCheckMode::Default,
         span: body.span,
+        recovered: false,
     };
-    rewrite_closure_block(&block, prefix, context, shape)
+    let block = ::expr::rewrite_block_with_visitor(context, "", &block, shape, false)?;
+    Some(format!("{} {}", prefix, block))
 }
 
 // Rewrite closure with a single expression without wrapping its body with block.
@@ -141,18 +148,37 @@ fn rewrite_closure_expr(
     context: &RewriteContext,
     shape: Shape,
 ) -> Option<String> {
-    let mut rewrite = expr.rewrite(context, shape);
-    if classify::expr_requires_semi_to_be_stmt(left_most_sub_expr(expr)) {
-        rewrite = and_one_line(rewrite);
-    }
-    rewrite = rewrite.and_then(|rw| {
-        if context.config.multiline_closure_forces_block() && rw.contains('\n') {
-            None
-        } else {
-            Some(rw)
+    fn allow_multi_line(expr: &ast::Expr) -> bool {
+        match expr.node {
+            ast::ExprKind::Match(..)
+            | ast::ExprKind::Block(..)
+            | ast::ExprKind::Catch(..)
+            | ast::ExprKind::Loop(..)
+            | ast::ExprKind::Struct(..) => true,
+
+            ast::ExprKind::AddrOf(_, ref expr)
+            | ast::ExprKind::Box(ref expr)
+            | ast::ExprKind::Try(ref expr)
+            | ast::ExprKind::Unary(_, ref expr)
+            | ast::ExprKind::Cast(ref expr, _) => allow_multi_line(expr),
+
+            _ => false,
         }
-    });
-    rewrite.map(|rw| format!("{} {}", prefix, rw))
+    }
+
+    // When rewriting closure's body without block, we require it to fit in a single line
+    // unless it is a block-like expression or we are inside macro call.
+    let veto_multiline = (!allow_multi_line(expr) && !context.inside_macro)
+        || context.config.force_multiline_blocks();
+    expr.rewrite(context, shape)
+        .and_then(|rw| {
+            if veto_multiline && rw.contains('\n') {
+                None
+            } else {
+                Some(rw)
+            }
+        })
+        .map(|rw| format!("{} {}", prefix, rw))
 }
 
 // Rewrite closure whose body is block.
@@ -162,9 +188,7 @@ fn rewrite_closure_block(
     context: &RewriteContext,
     shape: Shape,
 ) -> Option<String> {
-    let block_shape = shape.block();
-    let block_str = block.rewrite(context, block_shape)?;
-    Some(format!("{} {}", prefix, block_str))
+    Some(format!("{} {}", prefix, block.rewrite(context, shape)?))
 }
 
 // Return type is (prefix, extra_offset)
@@ -194,6 +218,7 @@ fn rewrite_closure_fn_decl(
         context.codemap,
         fn_decl.inputs.iter(),
         "|",
+        ",",
         |arg| span_lo_for_arg(arg),
         |arg| span_hi_for_arg(context, arg),
         |arg| arg.rewrite(context, arg_shape),
@@ -255,7 +280,9 @@ pub fn rewrite_last_closure(
 ) -> Option<String> {
     if let ast::ExprKind::Closure(capture, ref fn_decl, ref body, _) = expr.node {
         let body = match body.node {
-            ast::ExprKind::Block(ref block) if is_simple_block(block, context.codemap) => {
+            ast::ExprKind::Block(ref block)
+                if !is_unsafe_block(block) && is_simple_block(block, context.codemap) =>
+            {
                 stmt_expr(&block.stmts[0]).unwrap_or(body)
             }
             _ => body,
@@ -266,15 +293,11 @@ pub fn rewrite_last_closure(
         if prefix.contains('\n') {
             return None;
         }
-        // If we are inside macro, we do not want to add or remove block from closure body.
-        if context.inside_macro {
-            return expr.rewrite(context, shape);
-        }
 
         let body_shape = shape.offset_left(extra_offset)?;
 
         // We force to use block for the body of the closure for certain kinds of expressions.
-        if is_block_closure_forced(body) {
+        if is_block_closure_forced(context, body) {
             return rewrite_closure_with_block(body, &prefix, context, body_shape).and_then(
                 |body_str| {
                     // If the expression can fit in a single line, we need not force block closure.
@@ -326,23 +349,27 @@ where
         .count() > 1
 }
 
-fn is_block_closure_forced(expr: &ast::Expr) -> bool {
-    match expr.node {
-        ast::ExprKind::If(..) |
-        ast::ExprKind::IfLet(..) |
-        ast::ExprKind::Loop(..) |
-        ast::ExprKind::While(..) |
-        ast::ExprKind::WhileLet(..) |
-        ast::ExprKind::ForLoop(..) => true,
-        ast::ExprKind::AddrOf(_, ref expr) |
-        ast::ExprKind::Box(ref expr) |
-        ast::ExprKind::Try(ref expr) |
-        ast::ExprKind::Unary(_, ref expr) |
-        ast::ExprKind::Cast(ref expr, _) => is_block_closure_forced(expr),
-        _ => false,
+fn is_block_closure_forced(context: &RewriteContext, expr: &ast::Expr) -> bool {
+    // If we are inside macro, we do not want to add or remove block from closure body.
+    if context.inside_macro {
+        false
+    } else {
+        is_block_closure_forced_inner(expr)
     }
 }
 
-fn and_one_line(x: Option<String>) -> Option<String> {
-    x.and_then(|x| if x.contains('\n') { None } else { Some(x) })
+fn is_block_closure_forced_inner(expr: &ast::Expr) -> bool {
+    match expr.node {
+        ast::ExprKind::If(..)
+        | ast::ExprKind::IfLet(..)
+        | ast::ExprKind::While(..)
+        | ast::ExprKind::WhileLet(..)
+        | ast::ExprKind::ForLoop(..) => true,
+        ast::ExprKind::AddrOf(_, ref expr)
+        | ast::ExprKind::Box(ref expr)
+        | ast::ExprKind::Try(ref expr)
+        | ast::ExprKind::Unary(_, ref expr)
+        | ast::ExprKind::Cast(ref expr, _) => is_block_closure_forced_inner(expr),
+        _ => false,
+    }
 }

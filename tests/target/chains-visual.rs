@@ -1,5 +1,4 @@
 // rustfmt-normalize_comments: true
-// rustfmt-single_line_if_else_max_width: 0
 // rustfmt-indent_style: Visual
 // Test chain formatting.
 
@@ -17,15 +16,11 @@ fn main() {
     // Test case where first chain element isn't a path, but is shorter than
     // the size of a tab.
     x().y(|| match cond() {
-              true => (),
-              false => (),
-          });
+        true => (),
+        false => (),
+    });
 
-    loong_func().quux(move || if true {
-                          1
-                      } else {
-                          2
-                      });
+    loong_func().quux(move || if true { 1 } else { 2 });
 
     some_fuuuuuuuuunction().method_call_a(aaaaa, bbbbb, |c| {
         let x = c;
@@ -33,13 +28,13 @@ fn main() {
     });
 
     some_fuuuuuuuuunction().method_call_a(aaaaa, bbbbb, |c| {
-        let x = c;
-        x
-    })
+                               let x = c;
+                               x
+                           })
                            .method_call_b(aaaaa, bbbbb, |c| {
-        let x = c;
-        x
-    });
+                               let x = c;
+                               x
+                           });
 
     fffffffffffffffffffffffffffffffffff(a, {
         SCRIPT_TASK_ROOT.with(|root| {
@@ -47,10 +42,10 @@ fn main() {
                               });
     });
 
-    let suuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuum = xxxxxxx.map(|x| x + 5)
-                                                                          .map(|x| x / 2)
-                                                                          .fold(0,
-                                                                                |acc, x| acc + x);
+    let suuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuum =
+        xxxxxxx.map(|x| x + 5)
+               .map(|x| x / 2)
+               .fold(0, |acc, x| acc + x);
 
     aaaaaaaaaaaaaaaa.map(|x| {
                              x += 1;
@@ -67,11 +62,7 @@ fn floaters() {
                   field2: val2, }.method_call()
             .method_call();
 
-    let y = if cond {
-                val1
-            } else {
-                val2
-            }.method_call();
+    let y = if cond { val1 } else { val2 }.method_call();
 
     {
         match x {
@@ -150,5 +141,19 @@ fn issue1434() {
                 format!("could not read prototype ID at offset {:#010x}",
                         current_offset)
             })?;
+    }
+}
+
+fn issue2264() {
+    {
+        something.function()
+                 .map(|| {
+                          if let a_very_very_very_very_very_very_very_very_long_variable =
+                              compute_this_variable()
+                          {
+                              println!("Hello");
+                          }
+                      })
+                 .collect();
     }
 }

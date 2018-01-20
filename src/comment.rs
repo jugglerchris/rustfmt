@@ -18,7 +18,7 @@ use config::Config;
 use rewrite::RewriteContext;
 use shape::{Indent, Shape};
 use string::{rewrite_string, StringFormat};
-use utils::{first_line_width, last_line_width};
+use utils::{count_newlines, first_line_width, last_line_width};
 
 fn is_custom_comment(comment: &str) -> bool {
     if !comment.starts_with("//") {
@@ -64,10 +64,10 @@ impl<'a> CommentStyle<'a> {
 
     pub fn closer(&self) -> &'a str {
         match *self {
-            CommentStyle::DoubleSlash |
-            CommentStyle::TripleSlash |
-            CommentStyle::Custom(..) |
-            CommentStyle::Doc => "",
+            CommentStyle::DoubleSlash
+            | CommentStyle::TripleSlash
+            | CommentStyle::Custom(..)
+            | CommentStyle::Doc => "",
             CommentStyle::DoubleBullet => " **/",
             CommentStyle::SingleBullet | CommentStyle::Exclamation => " */",
         }
@@ -205,11 +205,7 @@ pub fn combine_strs_with_missing_comments(
     };
     Some(format!(
         "{}{}{}{}{}",
-        prev_str,
-        first_sep,
-        missing_comment,
-        second_sep,
-        next_str,
+        prev_str, first_sep, missing_comment, second_sep, next_str,
     ))
 }
 
@@ -224,9 +220,7 @@ pub fn rewrite_comment(
     // we should stop now.
     let num_bare_lines = orig.lines()
         .map(|line| line.trim())
-        .filter(|l| {
-            !(l.starts_with('*') || l.starts_with("//") || l.starts_with("/*"))
-        })
+        .filter(|l| !(l.starts_with('*') || l.starts_with("//") || l.starts_with("/*")))
         .count();
     if num_bare_lines > 0 && !config.normalize_comments() {
         return Some(orig.to_owned());
@@ -298,7 +292,7 @@ fn rewrite_comment_inner(
         config: config,
     };
 
-    let line_breaks = orig.trim_right().chars().filter(|&c| c == '\n').count();
+    let line_breaks = count_newlines(orig.trim_right());
     let lines = orig.lines()
         .enumerate()
         .map(|(i, mut line)| {
@@ -311,26 +305,78 @@ fn rewrite_comment_inner(
             line
         })
         .map(|s| left_trim_comment_line(s, &style))
-        .map(|line| {
+        .map(|(line, has_leading_whitespace)| {
             if orig.starts_with("/*") && line_breaks == 0 {
-                line.trim_left()
+                (
+                    line.trim_left(),
+                    has_leading_whitespace || config.normalize_comments(),
+                )
             } else {
-                line
+                (line, has_leading_whitespace || config.normalize_comments())
             }
         });
 
-    let mut result = opener.to_owned();
+    let mut result = String::with_capacity(orig.len() * 2);
+    result.push_str(opener);
+    let mut code_block_buffer = String::with_capacity(128);
     let mut is_prev_line_multi_line = false;
+    let mut inside_code_block = false;
     let comment_line_separator = format!("\n{}{}", indent_str, line_start);
-    for line in lines {
-        if result == opener {
-            if line.is_empty() {
-                continue;
+    let join_code_block_with_comment_line_separator = |s: &str| {
+        let mut result = String::with_capacity(s.len() + 128);
+        let mut iter = s.lines().peekable();
+        while let Some(line) = iter.next() {
+            result.push_str(line);
+            result.push_str(match iter.peek() {
+                Some(ref next_line) if next_line.is_empty() => comment_line_separator.trim_right(),
+                Some(..) => &comment_line_separator,
+                None => "",
+            });
+        }
+        result
+    };
+
+    for (i, (line, has_leading_whitespace)) in lines.enumerate() {
+        let is_last = i == count_newlines(orig);
+
+        if inside_code_block {
+            if line.starts_with("```") {
+                inside_code_block = false;
+                result.push_str(&comment_line_separator);
+                let code_block = ::format_code_block(&code_block_buffer, config)
+                    .unwrap_or_else(|| code_block_buffer.to_owned());
+                result.push_str(&join_code_block_with_comment_line_separator(&code_block));
+                code_block_buffer.clear();
+                result.push_str(&comment_line_separator);
+                result.push_str(line);
+            } else {
+                code_block_buffer.push_str(line);
+                code_block_buffer.push('\n');
             }
-        } else if is_prev_line_multi_line && !line.is_empty() {
-            result.push(' ')
+
+            continue;
         } else {
-            result.push_str(&comment_line_separator);
+            inside_code_block = line.starts_with("```");
+
+            if result == opener {
+                let force_leading_whitespace = opener == "/* " && count_newlines(orig) == 0;
+                if !has_leading_whitespace && !force_leading_whitespace && result.ends_with(' ') {
+                    result.pop();
+                }
+                if line.is_empty() {
+                    continue;
+                }
+            } else if is_prev_line_multi_line && !line.is_empty() {
+                result.push(' ')
+            } else if is_last && !closer.is_empty() && line.is_empty() {
+                result.push('\n');
+                result.push_str(&indent_str);
+            } else {
+                result.push_str(&comment_line_separator);
+                if !has_leading_whitespace && result.ends_with(' ') {
+                    result.pop();
+                }
+            }
         }
 
         if config.wrap_comments() && line.len() > fmt.shape.width && !has_url(line) {
@@ -374,7 +420,7 @@ fn rewrite_comment_inner(
                 Shape::legacy(max_chars, fmt_indent)
             };
         } else {
-            if line.is_empty() && result.ends_with(' ') {
+            if line.is_empty() && result.ends_with(' ') && !is_last {
                 // Remove space if this is an empty comment or a doc comment.
                 result.pop();
             }
@@ -466,32 +512,33 @@ fn light_rewrite_comment(orig: &str, offset: Indent, config: &Config) -> Option<
 }
 
 /// Trims comment characters and possibly a single space from the left of a string.
-/// Does not trim all whitespace.
-fn left_trim_comment_line<'a>(line: &'a str, style: &CommentStyle) -> &'a str {
+/// Does not trim all whitespace. If a single space is trimmed from the left of the string,
+/// this function returns true.
+fn left_trim_comment_line<'a>(line: &'a str, style: &CommentStyle) -> (&'a str, bool) {
     if line.starts_with("//! ") || line.starts_with("/// ") || line.starts_with("/*! ")
         || line.starts_with("/** ")
     {
-        &line[4..]
+        (&line[4..], true)
     } else if let CommentStyle::Custom(opener) = *style {
         if line.starts_with(opener) {
-            &line[opener.len()..]
+            (&line[opener.len()..], true)
         } else {
-            &line[opener.trim_right().len()..]
+            (&line[opener.trim_right().len()..], false)
         }
     } else if line.starts_with("/* ") || line.starts_with("// ") || line.starts_with("//!")
         || line.starts_with("///") || line.starts_with("** ")
         || line.starts_with("/*!")
         || (line.starts_with("/**") && !line.starts_with("/**/"))
     {
-        &line[3..]
+        (&line[3..], line.chars().nth(2).unwrap() == ' ')
     } else if line.starts_with("/*") || line.starts_with("* ") || line.starts_with("//")
         || line.starts_with("**")
     {
-        &line[2..]
+        (&line[2..], line.chars().nth(1).unwrap() == ' ')
     } else if line.starts_with('*') {
-        &line[1..]
+        (&line[1..], false)
     } else {
-        line
+        (line, line.starts_with(' '))
     }
 }
 
@@ -578,7 +625,7 @@ pub fn remove_trailing_white_spaces(text: &str) -> String {
     buffer
 }
 
-struct CharClasses<T>
+pub struct CharClasses<T>
 where
     T: Iterator,
     T::Item: RichChar,
@@ -587,7 +634,7 @@ where
     status: CharClassesStatus,
 }
 
-trait RichChar {
+pub trait RichChar {
     fn get_char(&self) -> char;
 }
 
@@ -600,6 +647,12 @@ impl RichChar for char {
 impl RichChar for (usize, char) {
     fn get_char(&self) -> char {
         self.1
+    }
+}
+
+impl RichChar for (char, usize) {
+    fn get_char(&self) -> char {
+        self.0
     }
 }
 
@@ -632,7 +685,7 @@ pub enum CodeCharKind {
 /// describing opening and closing of comments for ease when chunking
 /// code from tagged characters
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-enum FullCodeCharKind {
+pub enum FullCodeCharKind {
     Normal,
     /// The first character of a comment, there is only one for a comment (always '/')
     StartComment,
@@ -646,13 +699,17 @@ enum FullCodeCharKind {
 }
 
 impl FullCodeCharKind {
-    fn is_comment(&self) -> bool {
+    pub fn is_comment(&self) -> bool {
         match *self {
-            FullCodeCharKind::StartComment |
-            FullCodeCharKind::InComment |
-            FullCodeCharKind::EndComment => true,
+            FullCodeCharKind::StartComment
+            | FullCodeCharKind::InComment
+            | FullCodeCharKind::EndComment => true,
             _ => false,
         }
+    }
+
+    pub fn is_string(&self) -> bool {
+        *self == FullCodeCharKind::InString
     }
 
     fn to_codecharkind(&self) -> CodeCharKind {
@@ -669,7 +726,7 @@ where
     T: Iterator,
     T::Item: RichChar,
 {
-    fn new(base: T) -> CharClasses<T> {
+    pub fn new(base: T) -> CharClasses<T> {
         CharClasses {
             base: base.peekable(),
             status: CharClassesStatus::Normal,
@@ -826,9 +883,6 @@ impl<'a> Iterator for UngroupedCommentCodeSlices<'a> {
     }
 }
 
-
-
-
 /// Iterator over an alternating sequence of functional and commented parts of
 /// a string. The first item is always a, possibly zero length, subslice of
 /// functional text. Line style comments contain their ending newlines.
@@ -916,9 +970,9 @@ pub fn recover_comment_removed(
     context: &RewriteContext,
 ) -> Option<String> {
     let snippet = context.snippet(span);
-    if snippet != new && changed_comment_content(&snippet, &new) {
+    if snippet != new && changed_comment_content(snippet, &new) {
         // We missed some comments. Keep the original text.
-        Some(snippet)
+        Some(snippet.to_owned())
     } else {
         Some(new)
     }
@@ -949,7 +1003,6 @@ fn changed_comment_content(orig: &str, new: &str) -> bool {
     );
     res
 }
-
 
 /// Iterator over the 'payload' characters of a comment.
 /// It skips whitespace, comment start/end marks, and '*' at the beginning of lines.
@@ -995,7 +1048,6 @@ impl<'a> Iterator for CommentReducer<'a> {
         }
     }
 }
-
 
 fn remove_comment_header(comment: &str) -> &str {
     if comment.starts_with("///") || comment.starts_with("//!") {
