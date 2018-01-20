@@ -712,7 +712,6 @@ pub struct ModifiedLines {
     pub chunks: Vec<ModifiedChunk>,
 }
 
-
 /// Format a file and return a `ModifiedLines` data structure describing
 /// the changed ranges of lines.
 pub fn get_modified_lines(

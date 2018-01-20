@@ -159,8 +159,8 @@ fn modified_test() {
                     lines: vec!["fn blah() {}".into()],
                 },
                 ModifiedChunk {
-                    line_number: 10,
-                    lines_removed: 5,
+                    line_number: 9,
+                    lines_removed: 6,
                     lines: vec!["#[cfg(a, b)]".into(), "fn main() {}".into()],
                 },
             ],

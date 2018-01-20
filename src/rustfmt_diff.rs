@@ -184,21 +184,18 @@ where
     W: Write,
 {
     for mismatch in diff {
-        let (num_removed, num_added) = mismatch.lines.iter().fold(
-            (0, 0),
-            |(rem, add), line| match *line {
+        let (num_removed, num_added) = mismatch.lines.iter().fold((0, 0), |(rem, add), line| {
+            match *line {
                 DiffLine::Context(_) => panic!("No Context expected"),
                 DiffLine::Expected(_) => (rem, add + 1),
                 DiffLine::Resulting(_) => (rem + 1, add),
-            },
-        );
+            }
+        });
         // Write a header with enough information to separate the modified lines.
         writeln!(
             out,
             "{} {} {}",
-            mismatch.line_number_orig,
-            num_removed,
-            num_added
+            mismatch.line_number_orig, num_removed, num_added
         ).unwrap();
 
         for line in mismatch.lines {
@@ -297,6 +294,7 @@ mod test {
             vec![
                 Mismatch {
                     line_number: 5,
+                    line_number_orig: 5,
                     lines: vec![Context("five".to_owned()), Expected("".to_owned())],
                 },
             ]

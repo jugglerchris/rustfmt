@@ -168,6 +168,7 @@ where
             }
         }
         WriteMode::Modified => {
+            let filename = filename_to_path();
             if let Ok((ori, fmt)) = source_and_formatted_text(text, filename, config) {
                 let mismatch = make_diff(&ori, &fmt, 0);
                 let has_diff = !mismatch.is_empty();
